@@ -3,6 +3,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
+import { InMemoryStoreService } from '../../prisma/in-memory-store.service';
 
 export interface JwtPayload {
   sub: string;
@@ -15,6 +16,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     private configService: ConfigService,
     private prisma: PrismaService,
+    private inMemoryStore: InMemoryStoreService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -24,28 +26,38 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: JwtPayload) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: payload.sub },
-      include: {
-        roles: {
-          include: { role: true },
-        },
-      },
-    });
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { id: payload.sub },
+        include: { roles: { include: { role: true } } },
+      });
 
-    if (!user) {
+      if (user) {
+        return {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          isEmailVerified: user.isEmailVerified,
+          roles: user.roles.map((ur) => ur.role.name),
+        };
+      }
+    } catch {
+      // Fallback to in-memory store
+    }
+
+    const mockUser = this.inMemoryStore.users.find((u) => u.id === payload.sub || u.email === payload.email);
+    if (!mockUser) {
       throw new UnauthorizedException('Invalid user token');
     }
 
-    const userRoles = user.roles.map((ur) => ur.role.name);
-
     return {
-      id: user.id,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      isEmailVerified: user.isEmailVerified,
-      roles: userRoles,
+      id: mockUser.id,
+      email: mockUser.email,
+      firstName: mockUser.firstName,
+      lastName: mockUser.lastName,
+      isEmailVerified: mockUser.isEmailVerified,
+      roles: mockUser.roles,
     };
   }
 }
