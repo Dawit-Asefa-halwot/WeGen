@@ -1,0 +1,89 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 150 20% 98%;
+    --foreground: 160 30% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 160 30% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 160 30% 12%;
+
+    --primary: 158 84% 32%; /* Emerald #059669 */
+    --primary-foreground: 150 20% 98%;
+
+    --secondary: 150 15% 94%;
+    --secondary-foreground: 160 30% 15%;
+
+    --muted: 150 15% 94%;
+    --muted-foreground: 160 10% 45%;
+
+    --accent: 38 92% 50%; /* Warm Gold */
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 150 15% 90%;
+    --input: 150 15% 90%;
+    --ring: 158 84% 32%;
+
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 160 40% 6%;
+    --foreground: 150 20% 98%;
+
+    --card: 160 30% 9%;
+    --card-foreground: 150 20% 98%;
+
+    --popover: 160 30% 9%;
+    --popover-foreground: 150 20% 98%;
+
+    --primary: 158 75% 42%;
+    --primary-foreground: 160 40% 6%;
+
+    --secondary: 160 20% 16%;
+    --secondary-foreground: 150 20% 98%;
+
+    --muted: 160 20% 16%;
+    --muted-foreground: 150 15% 65%;
+
+    --accent: 38 92% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 160 20% 16%;
+    --input: 160 20% 16%;
+    --ring: 158 75% 42%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased selection:bg-brand-500 selection:text-white;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(229, 231, 235, 0.6);
+}
+
+.dark .glass-card {
+  background: rgba(15, 28, 23, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}

@@ -1,0 +1,25 @@
+{
+  "name": "wegen-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "WeGen - Ethiopian Crowdfunding, Giving, Referral & Organization Platform",
+  "scripts": {
+    "dev": "pnpm --parallel --filter \"@wegen/*\" dev",
+    "dev:web": "pnpm --filter @wegen/web dev",
+    "dev:api": "pnpm --filter @wegen/api dev",
+    "build": "pnpm --recursive run build",
+    "test": "pnpm --recursive run test",
+    "lint": "pnpm --recursive run lint",
+    "prisma:generate": "prisma generate --schema=./prisma/schema.prisma",
+    "prisma:migrate": "prisma migrate dev --schema=./prisma/schema.prisma",
+    "prisma:seed": "ts-node ./prisma/seed.ts"
+  },
+  "devDependencies": {
+    "prisma": "^6.4.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "@prisma/client": "6.4.0"
+  }
+}

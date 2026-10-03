@@ -1,0 +1,549 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum UserRoleName {
+  ADMIN
+  USER
+  DONOR
+  FUNDRAISER
+  REFERRER
+  ORGANIZATION_ADMIN
+  ORGANIZATION_MEMBER
+}
+
+enum CampaignType {
+  PERSONAL
+  REFERRAL
+  ORGANIZATION
+}
+
+enum CampaignStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  MORE_INFO_REQUIRED
+  VERIFIED
+  PUBLISHED
+  FUNDING
+  WITHDRAWAL_REQUESTED
+  COMPLETED
+  REJECTED
+  SUSPENDED
+  FLAGGED
+  CLOSED
+}
+
+enum DonationStatus {
+  PENDING
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum RecurringStatus {
+  ACTIVE
+  PAUSED
+  CANCELLED
+  EXPIRED
+  PAYMENT_FAILED
+}
+
+enum RecurringFrequency {
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum WithdrawalStatus {
+  REQUESTED
+  UNDER_REVIEW
+  APPROVED
+  PROCESSING
+  COMPLETED
+  REJECTED
+  FAILED
+  CANCELLED
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+  TRIALING
+}
+
+enum DocumentType {
+  NATIONAL_ID
+  PASSPORT
+  DRIVERS_LICENSE
+  MEDICAL_RECORD
+  ORGANIZATION_REGISTRATION
+  ORGANIZATION_TAX_CERT
+  BENEFICIARY_CONSENT
+  BANK_STATEMENT
+  EVIDENCE_PHOTO
+  OTHER_SUPPORTING
+}
+
+enum VerificationDecision {
+  APPROVE
+  REJECT
+  REQUEST_MORE_INFO
+  SUSPEND
+  FLAG
+}
+
+enum TransactionType {
+  DONATION
+  PLATFORM_FEE
+  WITHDRAWAL
+  SUBSCRIPTION
+  REFUND
+}
+
+model User {
+  id                    String        @id @default(uuid())
+  email                 String        @unique
+  passwordHash          String
+  firstName             String
+  lastName              String
+  phoneNumber           String?
+  avatarUrl             String?
+  isEmailVerified       Boolean       @default(false)
+  emailVerificationCode String?
+  resetToken            String?
+  resetTokenExpiry      DateTime?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  roles                 UserRole[]
+  campaigns             Campaign[]
+  referrals             Referral[]    @relation("ReferrerUser")
+  donations             Donation[]
+  recurringDonations    RecurringDonation[]
+  withdrawalsRequested  Withdrawal[]  @relation("WithdrawalRequester")
+  withdrawalsReviewed   Withdrawal[]  @relation("WithdrawalReviewer")
+  orgMemberships        OrganizationMember[]
+  verificationReviews   VerificationRecord[]
+  documentsUploaded     Document[]
+  auditLogs             AuditLog[]
+  reportsSubmitted      Report[]
+  notifications         Notification[]
+}
+
+model Role {
+  id          String        @id @default(uuid())
+  name        UserRoleName  @unique
+  description String?
+  userRoles   UserRole[]
+}
+
+model UserRole {
+  id     String @id @default(uuid())
+  userId String
+  roleId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+}
+
+model Category {
+  id                 String              @id @default(uuid())
+  name               String              @unique
+  slug               String              @unique
+  description        String?
+  icon               String?
+  isSystem           Boolean             @default(true)
+  campaigns          Campaign[]
+  recurringDonations RecurringDonation[]
+  createdAt          DateTime            @default(now())
+}
+
+model Campaign {
+  id               String         @id @default(uuid())
+  slug             String         @unique
+  title            String
+  story            String         @db.Text
+  categoryId       String
+  location         String
+  goalCents        BigInt
+  raisedCents      BigInt         @default(0)
+  supporterCount   Int            @default(0)
+  coverImageUrl    String?
+  videoUrl         String?
+  campaignType     CampaignType   @default(PERSONAL)
+  status           CampaignStatus @default(DRAFT)
+  isVerified       Boolean        @default(false)
+  userId           String
+  organizationId   String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  user             User                 @relation(fields: [userId], references: [id])
+  category         Category             @relation(fields: [categoryId], references: [id])
+  organization     Organization?        @relation(fields: [organizationId], references: [id])
+  beneficiary      Beneficiary?
+  referral         Referral?
+  updates          CampaignUpdate[]
+  media            CampaignMedia[]
+  documents        Document[]
+  verifications    VerificationRecord[]
+  donations        Donation[]
+  recurring        RecurringDonation[]
+  withdrawals      Withdrawal[]
+  reports          Report[]
+  flags            Flag[]
+
+  @@index([status, campaignType])
+  @@index([slug])
+  @@index([userId])
+}
+
+model Beneficiary {
+  id                     String    @id @default(uuid())
+  campaignId             String    @unique
+  name                   String
+  phone                  String?
+  relationshipToCreator String?
+  isReferralBeneficiary  Boolean   @default(false)
+  bankName               String?
+  accountNumber          String?
+  accountHolderName      String?
+  verifiedAt             DateTime?
+  createdAt              DateTime  @default(now())
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+}
+
+model Referral {
+  id             String   @id @default(uuid())
+  campaignId     String   @unique
+  referrerUserId String
+  reason         String   @db.Text
+  status         String   @default("SUBMITTED")
+  createdAt      DateTime @default(now())
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  referrer User     @relation("ReferrerUser", fields: [referrerUserId], references: [id])
+}
+
+model CampaignUpdate {
+  id         String   @id @default(uuid())
+  campaignId String
+  title      String
+  content    String   @db.Text
+  createdAt  DateTime @default(now())
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+}
+
+model CampaignMedia {
+  id         String   @id @default(uuid())
+  campaignId String
+  url        String
+  type       String   @default("IMAGE") // IMAGE, VIDEO
+  caption    String?
+  isPrimary  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+}
+
+model Document {
+  id                 String       @id @default(uuid())
+  campaignId         String?
+  organizationId     String?
+  documentType       DocumentType
+  storagePath        String
+  originalFilename   String
+  mimeType           String
+  isPrivate          Boolean      @default(true)
+  uploadedByUserId   String
+  verifiedAt         DateTime?
+  createdAt          DateTime     @default(now())
+
+  campaign     Campaign?     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  uploadedBy   User          @relation(fields: [uploadedByUserId], references: [id])
+}
+
+model VerificationRecord {
+  id             String               @id @default(uuid())
+  campaignId     String
+  reviewerUserId String
+  decision       VerificationDecision
+  notes          String               @db.Text
+  createdAt      DateTime             @default(now())
+
+  campaign Campaign            @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  reviewer User                @relation(fields: [reviewerUserId], references: [id])
+  events   VerificationEvent[]
+}
+
+model VerificationEvent {
+  id             String   @id @default(uuid())
+  recordId       String
+  previousStatus String
+  newStatus      String
+  actorUserId    String
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  record VerificationRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+}
+
+model Donation {
+  id                  String         @id @default(uuid())
+  donationReference   String         @unique
+  campaignId          String
+  donorUserId         String?
+  donorName           String?
+  donorEmail          String?
+  donorPhone          String?
+  isAnonymous         Boolean        @default(false)
+  amountCents         BigInt
+  platformFeeCents    BigInt         @default(0)
+  paymentFeeCents     BigInt         @default(0)
+  netAmountCents      BigInt
+  currency            String         @default("ETB")
+  status              DonationStatus @default(PENDING)
+  paymentProvider     String         @default("CHAPA")
+  providerReferenceId String?        @unique
+  message             String?
+  receiptUrl          String?
+  metadata            Json?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  campaign     Campaign      @relation(fields: [campaignId], references: [id])
+  donor        User?         @relation(fields: [donorUserId], references: [id])
+  transactions Transaction[]
+
+  @@index([campaignId, status])
+  @@index([donorUserId])
+}
+
+model Transaction {
+  id             String          @id @default(uuid())
+  reference      String          @unique
+  donationId     String?
+  withdrawalId   String?
+  subscriptionId String?
+  type           TransactionType
+  amountCents    BigInt
+  status         String          @default("COMPLETED")
+  description    String?
+  metadata       Json?
+  createdAt      DateTime        @default(now())
+
+  donation     Donation?                 @relation(fields: [donationId], references: [id])
+  withdrawal   Withdrawal?               @relation(fields: [withdrawalId], references: [id])
+  subscription OrganizationSubscription? @relation(fields: [subscriptionId], references: [id])
+
+  @@index([type, createdAt])
+}
+
+model PaymentProvider {
+  id       String  @id @default(uuid())
+  code     String  @unique // CHAPA, TELEBIRR, CBE_BIRR, STRIPE, MOCK
+  name     String
+  isActive Boolean @default(true)
+  config   Json?
+}
+
+model PaymentEvent {
+  id                  String   @id @default(uuid())
+  providerCode        String
+  eventType           String
+  providerReferenceId String
+  rawPayload          Json
+  processedAt         DateTime @default(now())
+  isVerified          Boolean  @default(false)
+
+  @@index([providerReferenceId])
+}
+
+model Withdrawal {
+  id                String           @id @default(uuid())
+  reference         String           @unique
+  campaignId        String
+  requestedByUserId String
+  amountCents       BigInt
+  bankName          String
+  accountNumber     String
+  accountHolderName String
+  status            WithdrawalStatus @default(REQUESTED)
+  reviewedByUserId  String?
+  reviewerNotes     String?
+  processedAt       DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  campaign    Campaign      @relation(fields: [campaignId], references: [id])
+  requestedBy User          @relation("WithdrawalRequester", fields: [requestedByUserId], references: [id])
+  reviewedBy  User?         @relation("WithdrawalReviewer", fields: [reviewedByUserId], references: [id])
+  Transaction Transaction[]
+
+  @@index([campaignId, status])
+}
+
+model Organization {
+  id                 String   @id @default(uuid())
+  name               String
+  slug               String   @unique
+  registrationNumber String   @unique
+  category           String
+  contactEmail       String
+  contactPhone       String
+  website            String?
+  description        String   @db.Text
+  logoUrl            String?
+  isVerified         Boolean  @default(false)
+  status             String   @default("PENDING") // PENDING, ACTIVE, SUSPENDED
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  members       OrganizationMember[]
+  campaigns     Campaign[]
+  documents     Document[]
+  subscriptions OrganizationSubscription[]
+}
+
+model OrganizationMember {
+  id             String   @id @default(uuid())
+  organizationId String
+  userId         String
+  role           String   @default("MEMBER") // ADMIN, MEMBER
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+}
+
+model SubscriptionPlan {
+  id            String   @id @default(uuid())
+  name          String
+  code          String   @unique // BASIC, PRO, ENTERPRISE
+  priceCents    BigInt
+  billingPeriod String   @default("MONTHLY") // MONTHLY, YEARLY
+  campaignLimit Int      @default(10)
+  features      Json
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  subscriptions OrganizationSubscription[]
+}
+
+model OrganizationSubscription {
+  id                     String             @id @default(uuid())
+  organizationId         String
+  planId                 String
+  status                 SubscriptionStatus @default(ACTIVE)
+  currentPeriodStart     DateTime           @default(now())
+  currentPeriodEnd       DateTime
+  autoRenew              Boolean            @default(true)
+  providerSubscriptionId String?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  organization Organization   @relation(fields: [organizationId], references: [id])
+  plan         SubscriptionPlan @relation(fields: [planId], references: [id])
+  transactions Transaction[]
+}
+
+model RecurringDonation {
+  id                     String             @id @default(uuid())
+  donorUserId            String?
+  donorEmail             String
+  donorName              String
+  campaignId             String?
+  categoryId             String?
+  amountCents            BigInt
+  frequency              RecurringFrequency @default(MONTHLY)
+  status                 RecurringStatus    @default(ACTIVE)
+  providerSubscriptionId String?
+  nextPaymentDate        DateTime
+  lastPaymentDate        DateTime?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  donor    User?     @relation(fields: [donorUserId], references: [id])
+  campaign Campaign? @relation(fields: [campaignId], references: [id])
+  category Category? @relation(fields: [categoryId], references: [id])
+
+  @@index([status, nextPaymentDate])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  email     String
+  type      String
+  title     String
+  message   String   @db.Text
+  isRead    Boolean  @default(false)
+  sentAt    DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  actorUserId String?
+  action      String
+  entity      String
+  entityId    String?
+  ipAddress   String?
+  userAgent   String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  actor User? @relation(fields: [actorUserId], references: [id])
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+}
+
+model Report {
+  id               String   @id @default(uuid())
+  campaignId       String
+  reportedByUserId String
+  reason           String
+  details          String   @db.Text
+  status           String   @default("OPEN") // OPEN, UNDER_REVIEW, RESOLVED, DISMISSED
+  resolvedByUserId String?
+  createdAt        DateTime @default(now())
+
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  reportedBy User     @relation(fields: [reportedByUserId], references: [id])
+}
+
+model Flag {
+  id              String   @id @default(uuid())
+  campaignId      String
+  flagType        String
+  notes           String   @db.Text
+  createdByUserId String
+  createdAt       DateTime @default(now())
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+}
