@@ -2,27 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { apiRequest } from '../lib/api-client';
+import { useParams, useRouter } from 'next/navigation';
+import { apiRequest } from '../../../lib/api-client';
 
-export interface DonationModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  campaignId?: string;
-  campaignTitle?: string;
-  campaignGoal?: number;
-  campaignRaised?: number;
-  campaignType?: 'PERSONAL' | 'REFERRAL' | 'ORGANIZATION';
-}
+export default function DonatePage() {
+  const params = useParams();
+  const router = useRouter();
+  const slug = (params?.slug as string) || 'help-chala-cardiac-surgery';
 
-export const DonationModal: React.FC<DonationModalProps> = ({
-  isOpen,
-  onClose,
-  campaignId = 'c1',
-  campaignTitle = 'Help Dawit get heart surgery',
-  campaignGoal = 150000,
-  campaignRaised = 62000,
-}) => {
-  // Preset Amounts & Min
   const PRESETS = [100, 200, 500, 1000, 2000, 5000];
   const MIN = 10;
 
@@ -47,37 +34,44 @@ export const DonationModal: React.FC<DonationModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isDone, setIsDone] = useState<boolean>(false);
   const [recentDonations, setRecentDonations] = useState<Array<{ amt: number }>>([]);
+  const [campaign, setCampaign] = useState({
+    title: 'Help Dawit get heart surgery',
+    goal: 150000,
+    raised: 62000,
+  });
 
-  // Load Recent Donations
+  // Load Saved Data
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('ethiofund-donations');
-      if (saved) {
-        setRecentDonations(JSON.parse(saved));
+      const savedDonations = localStorage.getItem('ethiofund-donations');
+      const savedCampaign = localStorage.getItem('ethiofund-campaign');
+
+      if (savedDonations) setRecentDonations(JSON.parse(savedDonations));
+      if (savedCampaign) {
+        const c = JSON.parse(savedCampaign);
+        setCampaign({
+          title: c.title || 'Help Dawit get heart surgery',
+          goal: c.goal || 150000,
+          raised: c.raised || 62000,
+        });
       }
     } catch (e) {
-      // Ignore storage errors
+      // Ignore
     }
   }, []);
 
-  if (!isOpen) return null;
-
-  // Progress Computations
-  const totalRaised = campaignRaised + recentDonations.reduce((acc, d) => acc + d.amt, 0);
-  const goal = campaignGoal || 1;
+  const totalRaised = campaign.raised + recentDonations.reduce((acc, d) => acc + d.amt, 0);
+  const goal = campaign.goal || 1;
   const pct = Math.min(100, Math.round((totalRaised / goal) * 100));
   const remainingEtb = Math.max(0, goal - totalRaised);
 
-  // Tip Computations
   const computedTip = customTip !== null ? customTip : Math.round((amt * tipPercent) / 100);
   const totalDue = amt + computedTip;
 
-  // Formatting Helpers
   const f0 = (n: number) => n.toLocaleString('en-US');
   const f2 = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const parseNum = (v: string) => Math.max(0, parseFloat(String(v).replace(/[^\d.]/g, '')) || 0);
 
-  // Handlers
   const handlePresetSelect = (val: number) => {
     setAmt(val);
     setCustomInputVal(val.toString());
@@ -128,44 +122,45 @@ export const DonationModal: React.FC<DonationModalProps> = ({
     };
 
     try {
-      // Save locally
       const updated = [...recentDonations, donationRecord];
       setRecentDonations(updated);
       localStorage.setItem('ethiofund-donations', JSON.stringify(updated));
 
-      // Attempt backend API call
       await apiRequest('/donations', {
         method: 'POST',
         body: JSON.stringify({
-          campaignId,
+          campaignId: slug,
           amountEtb: amt,
           paymentProvider: pm.toUpperCase(),
           isAnonymous: isAnon,
         }),
       });
     } catch (e) {
-      // Continue locally even if offline
+      // Continue offline
     }
 
     setIsSubmitting(false);
     setIsDone(true);
+    window.scrollTo(0, 0);
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm overflow-y-auto p-4 flex items-center justify-center">
-      <div className="relative w-full max-w-[720px] bg-white rounded-[28px] min-[560px]:rounded-[40px] p-6 min-[560px]:p-10 shadow-2xl my-8 text-[#1A1A1A]">
-        
-        {/* Close Modal Button */}
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute top-6 right-6 w-9 h-9 rounded-full bg-[#F6F6F6] hover:bg-[#EBEBEB] grid place-items-center font-bold text-lg transition-colors"
-          aria-label="Close modal"
-        >
-          ✕
-        </button>
+    <div className="min-h-screen bg-[#F6F6F6] text-[#1A1A1A] font-sans antialiased pb-safe">
+      
+      {/* Top Header (.top) */}
+      <div className="max-w-[720px] mx-auto px-4 py-5 flex items-center justify-between">
+        <Link href="/" className="font-heading font-bold text-lg flex items-center gap-[9px] text-[#1A1A1A]">
+          <i className="w-[22px] h-[22px] rounded-full bg-[#CCF88E] border-2 border-[#1A1A1A] inline-block shrink-0 not-italic" />
+          Ethio Fund
+        </Link>
+        <Link href="/auth/login" className="font-medium text-[#1A1A1A]">
+          Sign in
+        </Link>
+      </div>
 
-        {/* DONE VIEW */}
+      {/* Main Card (.card) */}
+      <main className="max-w-[720px] mx-auto bg-white rounded-[28px] min-[560px]:rounded-[40px] p-[28px_20px] min-[560px]:p-10 shadow-sm border border-[#EBEBEB] space-y-6">
+        
         {isDone ? (
           <div className="text-center py-10">
             <div className="w-[76px] h-[76px] rounded-full bg-[#CCF88E] grid place-items-center text-4xl mx-auto mb-5">
@@ -175,27 +170,22 @@ export const DonationModal: React.FC<DonationModalProps> = ({
               Thank you for giving
             </h1>
             <p className="mt-2 text-base text-[#1A1A1A]">
-              Your donation of <b className="font-bold">{f2(amt)} ETB</b> to “{campaignTitle}” was recorded.
+              Your donation of <b className="font-bold">{f2(amt)} ETB</b> to “{campaign.title}” was recorded.
             </p>
             <p className="text-[#6E6E6E] text-sm mt-3.5">
               Demo mode: no real payment was taken.
             </p>
             <div className="mt-6 flex justify-center gap-3">
-              <button
-                type="button"
-                onClick={onClose}
-                className="btn-pill btn-lime px-7 py-3"
-              >
-                Done
-              </button>
+              <Link href="/" className="btn-pill btn-lime px-7 py-3">
+                Back to home
+              </Link>
             </div>
           </div>
         ) : (
-          /* DONATION FORM VIEW */
           <div className="space-y-6">
             
-            {/* Header with Conic Ring & Progress */}
-            <div className="flex items-center gap-5 pt-2">
+            {/* Header Section */}
+            <div className="flex items-center gap-5">
               <div 
                 className="w-[80px] h-[80px] rounded-full grid place-items-center shrink-0"
                 style={{
@@ -209,7 +199,7 @@ export const DonationModal: React.FC<DonationModalProps> = ({
 
               <div>
                 <h1 className="font-heading font-bold text-[22px] min-[560px]:text-[28px] leading-[1.15] text-[#1A1A1A] break-words">
-                  {campaignTitle}
+                  {campaign.title}
                 </h1>
                 <p className="font-semibold text-sm mt-1 text-[#1A1A1A]">
                   {totalRaised >= goal
@@ -219,7 +209,7 @@ export const DonationModal: React.FC<DonationModalProps> = ({
               </div>
             </div>
 
-            {/* Step 1: Preset Buttons */}
+            {/* Presets */}
             <div>
               <h2 className="font-heading font-bold text-lg mb-3">
                 Enter your donation
@@ -248,7 +238,7 @@ export const DonationModal: React.FC<DonationModalProps> = ({
               </div>
             </div>
 
-            {/* Custom Amount Input */}
+            {/* Amount Input */}
             <label className="amt flex items-center justify-between gap-4 border border-[#bdbdbd] rounded-2xl p-[22px_24px] focus-within:border-[#1A1A1A] focus-within:ring-1 focus-within:ring-[#1A1A1A]">
               <b className="font-heading font-bold text-xl">ETB</b>
               <input
@@ -387,7 +377,7 @@ export const DonationModal: React.FC<DonationModalProps> = ({
 
             <hr className="border-t border-[#EBEBEB] my-6" />
 
-            {/* Summary Breakdown */}
+            {/* Summary */}
             <div>
               <h2 className="font-heading font-bold text-lg mb-3">
                 Your donation
@@ -410,7 +400,7 @@ export const DonationModal: React.FC<DonationModalProps> = ({
 
             {errorMsg && <div className="text-[#B3261E] text-sm font-semibold">{errorMsg}</div>}
 
-            {/* Action Pay Button */}
+            {/* Pay Button */}
             <button
               type="button"
               disabled={amt < MIN || isSubmitting}
@@ -444,7 +434,8 @@ export const DonationModal: React.FC<DonationModalProps> = ({
           </div>
         )}
 
-      </div>
+      </main>
+
     </div>
   );
-};
+}
