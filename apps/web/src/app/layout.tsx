@@ -2,13 +2,13 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'WeGen Ethiopia - Verified Crowdfunding, Giving & Organization Platform',
-  description: 'WeGen is Ethiopia\'s verified crowdfunding, giving, and organization fundraising platform connecting people in need, referrers, donors, and NGOs.',
+  title: 'Ethio Fund / WeGen - Verified Fundraising for Ethiopia You Can Trust',
+  description: 'Ethio Fund is Ethiopia\'s verified crowdfunding, giving, and organization fundraising platform. Every campaign is reviewed before going live.',
   openGraph: {
-    title: 'WeGen Ethiopia - Verified Crowdfunding & Giving',
-    description: 'Together, We Can Change Someone\'s Story. 100% Verified Ethiopian Crowdfunding.',
+    title: 'Ethio Fund / WeGen - Verified Fundraising for Ethiopia',
+    description: 'Every campaign is reviewed by our team. Support verified personal, referral, and organization causes in Ethiopia.',
     url: 'https://wegen.et',
-    siteName: 'WeGen Platform',
+    siteName: 'Ethio Fund',
     images: [
       {
         url: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=1200&auto=format&fit=crop&q=80',
@@ -27,14 +27,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="h-full">
+    <html lang="en" className="h-full scroll-smooth">
       <head>
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#059669" />
+        <meta name="theme-color" content="#CCF88E" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600&family=Noto+Sans+Ethiopic:wght@500;700&display=swap"
+          rel="stylesheet"
+        />
       </head>
-      <body className="h-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased">
+      <body className="h-full bg-[#FFFFFF] text-[#1A1A1A] antialiased selection:bg-[#CCF88E] selection:text-[#1A1A1A]">
         {children}
       </body>
     </html>
   );
 }
+

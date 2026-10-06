@@ -4,86 +4,123 @@
 
 @layer base {
   :root {
-    --background: 150 20% 98%;
-    --foreground: 160 30% 12%;
-
-    --card: 0 0% 100%;
-    --card-foreground: 160 30% 12%;
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 160 30% 12%;
-
-    --primary: 158 84% 32%; /* Emerald #059669 */
-    --primary-foreground: 150 20% 98%;
-
-    --secondary: 150 15% 94%;
-    --secondary-foreground: 160 30% 15%;
-
-    --muted: 150 15% 94%;
-    --muted-foreground: 160 10% 45%;
-
-    --accent: 38 92% 50%; /* Warm Gold */
-    --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 150 15% 90%;
-    --input: 150 15% 90%;
-    --ring: 158 84% 32%;
-
-    --radius: 0.75rem;
+    --ink: #1A1A1A;
+    --mute: #6E6E6E;
+    --line: #EBEBEB;
+    --soft: #F6F6F6;
+    --lime: #CCF88E;
+    --lime-deep: #B6EA6C;
+    --white: #FFFFFF;
+    --hero-gradient: linear-gradient(160deg, #F1FBDF 0%, #CCF88E 55%, #B6EA6C 100%);
   }
 
-  .dark {
-    --background: 160 40% 6%;
-    --foreground: 150 20% 98%;
-
-    --card: 160 30% 9%;
-    --card-foreground: 150 20% 98%;
-
-    --popover: 160 30% 9%;
-    --popover-foreground: 150 20% 98%;
-
-    --primary: 158 75% 42%;
-    --primary-foreground: 160 40% 6%;
-
-    --secondary: 160 20% 16%;
-    --secondary-foreground: 150 20% 98%;
-
-    --muted: 160 20% 16%;
-    --muted-foreground: 150 15% 65%;
-
-    --accent: 38 92% 50%;
-    --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 160 20% 16%;
-    --input: 160 20% 16%;
-    --ring: 158 75% 42%;
-  }
-}
-
-@layer base {
-  * {
-    @apply border-border;
-  }
   body {
-    @apply bg-background text-foreground antialiased selection:bg-brand-500 selection:text-white;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-family: 'Figtree', 'Noto Sans Ethiopic', sans-serif;
+    color: var(--ink);
+    background-color: var(--white);
+    line-height: 1.6;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6, .font-heading {
+    font-family: 'Bricolage Grotesque', 'Noto Sans Ethiopic', sans-serif;
+    letter-spacing: -0.02em;
+  }
+
+  /* Focus ring rule */
+  *:focus-visible {
+    outline: 2px solid var(--ink) !important;
+    outline-offset: 3px !important;
   }
 }
 
-.glass-card {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(229, 231, 235, 0.6);
+/* Button Classes */
+.btn-pill {
+  display: inline-flex;
+  items-center: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.95rem;
 }
 
-.dark .glass-card {
-  background: rgba(15, 28, 23, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+.btn-lime {
+  background-color: var(--lime);
+  color: var(--ink);
+}
+
+.btn-lime:hover {
+  background-color: var(--lime-deep);
+}
+
+.btn-dark {
+  background-color: var(--ink);
+  color: var(--white);
+}
+
+.btn-dark:hover {
+  background-color: #000000;
+}
+
+.btn-outline {
+  background-color: transparent;
+  color: var(--ink);
+  border: 1.5px solid var(--ink);
+}
+
+.btn-outline:hover {
+  background-color: var(--soft);
+}
+
+.btn-small {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+}
+
+/* Custom glass card */
+.glass-card-hero {
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.06);
+  border-radius: 28px;
+}
+
+/* Section dividers */
+.section-border {
+  border-top: 1px solid var(--line);
+}
+
+/* Keyframes for float chips & ping dot */
+@keyframes floatBob {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.animate-bob {
+  animation: floatBob 5s ease-in-out infinite;
+}
+
+.animate-bob-delayed {
+  animation: floatBob 5s ease-in-out 2.5s infinite;
+}
+
+/* Custom select caret */
+.custom-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%231A1A1A' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  background-size: 1rem;
+  padding-right: 2.75rem;
 }
