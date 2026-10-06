@@ -60,6 +60,7 @@ export default function LoginPage() {
             firstName: email.split('@')[0],
             lastName: 'User',
             roles: ['FUNDRAISER'],
+            isEmailVerified: true,
           },
           'demo-access-token'
         );
