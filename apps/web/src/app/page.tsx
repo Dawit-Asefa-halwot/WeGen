@@ -7,6 +7,7 @@ import {
   ChevronRight, CheckCircle2, RotateCcw 
 } from 'lucide-react';
 import { CAMPAIGN_DATA, HERO_SLIDES, STORIES, PHOTOS, Campaign } from '../data/campaigns';
+import AttentionPopup from '../components/AttentionPopup';
 
 // ==========================================
 // SIMULATED DONATIONS FEED CONFIGURATION
@@ -272,6 +273,9 @@ export default function EthioFundLandingPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-white text-[#1A1A1A] font-sans">
+
+      {/* ── Attention Popup (appears after 3s, once per session) ── */}
+      <AttentionPopup />
 
       {/* ==========================================
           1. STICKY HEADER — GoFundMe-style layout
