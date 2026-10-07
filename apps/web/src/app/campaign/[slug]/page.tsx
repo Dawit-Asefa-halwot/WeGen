@@ -19,6 +19,7 @@ export default function CampaignDetailPage() {
   const slug = params.slug as string;
 
   const [isShareOpen, setIsShareOpen] = useState(false);
+  const [isMonthly, setIsMonthly] = useState(false);
 
   // Dynamic campaign data based on slug
   const campaign = CAMPAIGN_DB[slug] || CAMPAIGN_DB['c1'];
@@ -298,13 +299,57 @@ export default function CampaignDetailPage() {
                 </div>
               </div>
 
+              {/* Monthly Subscription Toggle */}
+              <div className="mb-4 bg-[#F8F8F8] rounded-2xl p-4 border border-[#EBEBEB]">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <div className="text-[14px] font-bold text-[#1A1A1A] flex items-center gap-1.5">
+                      <span>🔁</span> Give monthly
+                    </div>
+                    <div className="text-[12px] text-[#6E6E6E] mt-0.5">
+                      {isMonthly ? (
+                        <span className="text-[#02845A] font-semibold">100 ETB · every month ✓</span>
+                      ) : (
+                        'Support this campaign every month'
+                      )}
+                    </div>
+                  </div>
+                  {/* Toggle Switch */}
+                  <button
+                    role="switch"
+                    aria-checked={isMonthly}
+                    onClick={() => setIsMonthly(!isMonthly)}
+                    className="relative shrink-0 w-12 h-6 rounded-full transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#02A95C] focus-visible:ring-offset-2"
+                    style={{ background: isMonthly ? '#02A95C' : '#D1D5DB' }}
+                  >
+                    <span
+                      className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200"
+                      style={{ transform: isMonthly ? 'translateX(24px)' : 'translateX(0)' }}
+                    />
+                  </button>
+                </div>
+
+                {/* Monthly amount pill — shown when toggled on */}
+                {isMonthly && (
+                  <div className="flex items-center gap-2 pt-2 border-t border-[#E5E7EB]">
+                    <div className="flex-1 flex items-center justify-center gap-1.5 bg-[#CCF88E] rounded-xl py-2 px-3">
+                      <span className="text-[15px] font-extrabold text-[#1A1A1A]">100 ETB</span>
+                      <span className="text-[12px] text-[#4A7A1A] font-semibold">/month</span>
+                    </div>
+                    <div className="text-[11px] text-[#6E6E6E] text-center leading-tight">
+                      Cancel<br/>anytime
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Action Buttons */}
               <div className="space-y-3 mb-6">
                 <Link
-                  href={`/campaign/${slug}/donate`}
+                  href={`/campaign/${slug}/donate${isMonthly ? '?type=monthly&amount=100' : ''}`}
                   className="w-full btn-lime py-3.5 rounded-xl font-bold text-[16px] shadow-sm hover:scale-[1.02] transition-transform text-center block"
                 >
-                  Donate now
+                  {isMonthly ? '🔁 Subscribe · 100 ETB/mo' : 'Donate now'}
                 </Link>
                 <button
                   onClick={() => setIsShareOpen(true)}
