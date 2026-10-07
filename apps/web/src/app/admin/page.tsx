@@ -181,7 +181,7 @@ export default function AdminPage() {
       if (saved) {
         setAdminData(JSON.parse(saved));
       }
-      
+
       // Check local campaign from creator
       const lc = localStorage.getItem('ethiofund-campaign') || localStorage.getItem('wegen-campaign');
       if (lc) {
@@ -189,7 +189,7 @@ export default function AdminPage() {
         const p = JSON.parse(localStorage.getItem('ethiofund-profile') || '{}');
         const us = JSON.parse(localStorage.getItem('ethiofund-user') || '{}');
         const newUid = 'u' + INITIAL_USERS.length;
-        
+
         const localUser: AdminUser = {
           id: newUid,
           name: (us.email || 'Creator User').split('@')[0],
@@ -211,13 +211,15 @@ export default function AdminPage() {
           local: 1
         };
 
-        setUsers(prev => [localUser, ...prev]);
-        setCampaigns(prev => [localCampaign, ...prev]);
+        // Guard against duplicate entries (React Strict Mode fires effects twice in dev)
+        setUsers(prev => prev.some(u => u.id === newUid) ? prev : [localUser, ...prev]);
+        setCampaigns(prev => prev.some(c => c.id === 'c-local') ? prev : [localCampaign, ...prev]);
       }
     } catch (e) {
       // Ignore parse errors
     }
   }, []);
+
 
   const saveAdminData = (updated: AdminStorageData) => {
     setAdminData(updated);
