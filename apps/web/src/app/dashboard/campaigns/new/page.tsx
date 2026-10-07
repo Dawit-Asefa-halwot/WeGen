@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/navigation';
 import { apiRequest } from '../../../../lib/api-client';
 
 const KEY = 'ethiofund-draft';
@@ -35,10 +35,12 @@ const CHARITIES = [
 ];
 
 export default function NewCampaignWizardPage() {
+  const router = useRouter();
   const [step, setStep] = useState<number>(1);
   const [subStepCharity, setSubStepCharity] = useState<boolean>(false);
   const [isDone, setIsDone] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
 
   // Form State
   const [city, setCity] = useState<string>('Addis Ababa');
@@ -102,7 +104,8 @@ export default function NewCampaignWizardPage() {
   const isStepOk = (): boolean => {
     if (subStepCharity) return false;
     if (step === 1) return Boolean(city && cat);
-    if (step === 2) return Boolean(who && (who !== 'org' || selectedOrg));
+    if (step === 2) return Boolean(who); // 'org' redirects to charity-setup on click
+
     if (step === 3) return numVal(goal) >= MIN_GOAL;
     if (step === 4) return Boolean(photo || isYtOk(ytUrl));
     if (step === 5) return wordCount(story) >= MIN_WORDS;
@@ -198,8 +201,9 @@ export default function NewCampaignWizardPage() {
   // Navigation Logic
   const handleNext = () => {
     if (!isStepOk()) return;
-    if (step === 2 && who === 'org' && !selectedOrg) {
-      setSubStepCharity(true);
+    // When user picks Charity, redirect to the dedicated charity setup flow
+    if (step === 2 && who === 'org') {
+      router.push('/dashboard/campaigns/charity-setup');
       return;
     }
     if (step === 7) {
