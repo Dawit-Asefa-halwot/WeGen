@@ -7,6 +7,8 @@ import { ChevronLeft, Heart, ShieldCheck, ChevronDown, Check, X } from 'lucide-r
 import { CAMPAIGN_DB, CampaignDetail } from '../../../../data/campaignDetailDb';
 import { apiRequest } from '../../../../lib/api-client';
 import { ShareModal } from '../../../../components/ShareModal';
+import { Navbar } from '../../../../components/Navbar';
+import { Footer } from '../../../../components/Footer';
 
 export default function CampaignDonatePage() {
   const params = useParams();
@@ -143,41 +145,21 @@ export default function CampaignDonatePage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FBFBFB] text-[#1A1A1A] font-sans">
-      {/* GoFundMe Minimal Header */}
-      <header className="sticky top-0 z-30 bg-white border-b border-[#EBEBEB] px-4 sm:px-8 py-3.5">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          {/* Back link */}
-          <Link
-            href={`/campaign/${slug}`}
-            className="flex items-center gap-1.5 text-[15px] font-semibold text-[#1A1A1A] hover:text-[#02A95C] transition-colors"
-          >
-            <ChevronLeft className="w-5 h-5" />
-            <span>Fundraiser</span>
-          </Link>
+    <div className="min-h-screen bg-[#FBFBFB] text-[#1A1A1A] font-sans flex flex-col justify-between">
+      <Navbar />
 
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2">
-            <span className="font-heading font-extrabold text-[24px] tracking-tight text-[#02A95C]">
-              wegen
-            </span>
-          </Link>
-
-          {/* User Menu Indicator */}
-          <div className="flex items-center gap-2 cursor-pointer py-1 px-2.5 rounded-full hover:bg-[#F5F5F5] transition-colors">
-            <div className="w-8 h-8 rounded-full bg-[#8B5CF6] text-white flex items-center justify-center font-bold text-sm shadow-sm">
-              W
-            </div>
-            <span className="text-[14px] font-semibold text-[#1A1A1A] hidden sm:inline">
-              Wegen
-            </span>
-            <ChevronDown className="w-4 h-4 text-[#6E6E6E]" />
-          </div>
-        </div>
-      </header>
+      <div className="max-w-[620px] w-full mx-auto px-4 pt-6 pb-0">
+        <Link
+          href={`/campaign/${slug}`}
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#1A1A1A] hover:text-[#02A95C] transition-colors"
+        >
+          <ChevronLeft className="w-4 h-4" />
+          <span>Back to fundraiser</span>
+        </Link>
+      </div>
 
       {/* Main Container */}
-      <main className="max-w-[620px] mx-auto px-4 py-8 sm:py-12">
+      <main className="max-w-[620px] w-full mx-auto px-4 py-6 sm:py-8 flex-1">
         <div className="bg-white rounded-[28px] sm:rounded-[36px] border border-[#EBEBEB] p-6 sm:p-10 shadow-[0_4px_30px_rgba(0,0,0,0.05)]">
           {isDone ? (
             /* SUCCESS VIEW */
@@ -553,6 +535,8 @@ export default function CampaignDonatePage() {
         campaignTitle={campaign.title}
         campaignSlug={slug}
       />
+
+      <Footer />
     </div>
   );
 }
