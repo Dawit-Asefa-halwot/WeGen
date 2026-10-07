@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { Navbar } from '../../../components/Navbar';
 import { Footer } from '../../../components/Footer';
 import { CAMPAIGN_DB } from '../../../data/campaignDetailDb';
+import { ShareModal } from '../../../components/ShareModal';
 import { 
   ShieldCheck, MapPin, Users, Heart, Share2, Calendar, HeartHandshake, 
   Building2, CheckCircle2, AlertCircle, FileText, ArrowRight,
@@ -16,6 +17,8 @@ import {
 export default function CampaignDetailPage() {
   const params = useParams();
   const slug = params.slug as string;
+
+  const [isShareOpen, setIsShareOpen] = useState(false);
 
   // Dynamic campaign data based on slug
   const campaign = CAMPAIGN_DB[slug] || CAMPAIGN_DB['c1'];
@@ -95,7 +98,10 @@ export default function CampaignDetailPage() {
                 >
                   Donate
                 </Link>
-                <button className="flex-1 py-3 px-4 border border-[#cfcfcf] rounded-full font-semibold text-[15px] hover:border-[#1A1A1A] transition-colors">
+                <button 
+                  onClick={() => setIsShareOpen(true)}
+                  className="flex-1 py-3 px-4 border border-[#cfcfcf] rounded-full font-semibold text-[15px] hover:border-[#1A1A1A] transition-colors"
+                >
                   Share
                 </button>
               </div>
@@ -200,11 +206,11 @@ export default function CampaignDetailPage() {
               </div>
 
               <div className="flex items-center gap-3">
-                <button className="w-10 h-10 rounded-full bg-[#F5F5F5] flex items-center justify-center hover:bg-[#EBEBEB] text-[#1A1A1A]"><LinkIcon className="w-5 h-5" /></button>
-                <button className="w-10 h-10 rounded-full bg-[#1877F2] flex items-center justify-center text-white"><Facebook className="w-5 h-5 fill-current" /></button>
-                <button className="w-10 h-10 rounded-full bg-[#25D366] flex items-center justify-center text-white"><MessageCircleIcon className="w-5 h-5 fill-current" /></button>
-                <button className="w-10 h-10 rounded-full bg-[#0084FF] flex items-center justify-center text-white"><MessageCircleIcon className="w-5 h-5 fill-current" /></button>
-                <button className="w-10 h-10 rounded-full bg-[#0A66C2] flex items-center justify-center text-white"><Linkedin className="w-5 h-5 fill-current" /></button>
+                <button onClick={() => setIsShareOpen(true)} aria-label="Quick share link" className="w-10 h-10 rounded-full bg-[#F5F5F5] flex items-center justify-center hover:bg-[#EBEBEB] text-[#1A1A1A] transition-colors"><LinkIcon className="w-5 h-5" /></button>
+                <button onClick={() => setIsShareOpen(true)} aria-label="Share on Facebook" className="w-10 h-10 rounded-full bg-[#1877F2] flex items-center justify-center text-white hover:opacity-90 transition-opacity"><Facebook className="w-5 h-5 fill-current" /></button>
+                <button onClick={() => setIsShareOpen(true)} aria-label="Share on WhatsApp" className="w-10 h-10 rounded-full bg-[#25D366] flex items-center justify-center text-white hover:opacity-90 transition-opacity"><MessageCircleIcon className="w-5 h-5 fill-current" /></button>
+                <button onClick={() => setIsShareOpen(true)} aria-label="Share on Messenger" className="w-10 h-10 rounded-full bg-[#0084FF] flex items-center justify-center text-white hover:opacity-90 transition-opacity"><MessageCircleIcon className="w-5 h-5 fill-current" /></button>
+                <button onClick={() => setIsShareOpen(true)} aria-label="Share on LinkedIn" className="w-10 h-10 rounded-full bg-[#0A66C2] flex items-center justify-center text-white hover:opacity-90 transition-opacity"><Linkedin className="w-5 h-5 fill-current" /></button>
               </div>
             </div>
 
@@ -301,6 +307,7 @@ export default function CampaignDetailPage() {
                   Donate now
                 </Link>
                 <button
+                  onClick={() => setIsShareOpen(true)}
                   className="w-full btn-dark py-3.5 rounded-xl font-bold text-[16px] hover:scale-[1.02] transition-transform"
                 >
                   Share
@@ -350,6 +357,13 @@ export default function CampaignDetailPage() {
         </div>
 
       </main>
+
+      <ShareModal
+        isOpen={isShareOpen}
+        onClose={() => setIsShareOpen(false)}
+        campaignTitle={campaign.title}
+        campaignSlug={slug}
+      />
 
       <Footer />
     </div>

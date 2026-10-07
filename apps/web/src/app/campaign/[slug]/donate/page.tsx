@@ -6,11 +6,14 @@ import Link from 'next/link';
 import { ChevronLeft, Heart, ShieldCheck, ChevronDown, Check, X } from 'lucide-react';
 import { CAMPAIGN_DB, CampaignDetail } from '../../../../data/campaignDetailDb';
 import { apiRequest } from '../../../../lib/api-client';
+import { ShareModal } from '../../../../components/ShareModal';
 
 export default function CampaignDonatePage() {
   const params = useParams();
   const router = useRouter();
   const slug = (params.slug as string) || 'c1';
+
+  const [isShareOpen, setIsShareOpen] = useState(false);
 
   // Get campaign from DB or fallback
   const campaign: CampaignDetail = CAMPAIGN_DB[slug] || CAMPAIGN_DB['c1'];
@@ -218,17 +221,7 @@ export default function CampaignDonatePage() {
                 </Link>
                 <button
                   type="button"
-                  onClick={() => {
-                    if (navigator.share) {
-                      navigator.share({
-                        title: campaign.title,
-                        url: window.location.origin + `/campaign/${slug}`,
-                      }).catch(() => {});
-                    } else {
-                      navigator.clipboard.writeText(window.location.origin + `/campaign/${slug}`);
-                      alert('Fundraiser link copied to clipboard!');
-                    }
-                  }}
+                  onClick={() => setIsShareOpen(true)}
                   className="bg-[#F5F5F5] hover:bg-[#EBEBEB] text-[#1A1A1A] font-semibold py-3.5 px-8 rounded-full transition-all"
                 >
                   Share fundraiser
@@ -553,6 +546,13 @@ export default function CampaignDonatePage() {
           )}
         </div>
       </main>
+
+      <ShareModal
+        isOpen={isShareOpen}
+        onClose={() => setIsShareOpen(false)}
+        campaignTitle={campaign.title}
+        campaignSlug={slug}
+      />
     </div>
   );
 }
