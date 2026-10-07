@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState } from 'react';
 import Link from 'next/link';
@@ -213,6 +213,13 @@ export default function LoginPage() {
           <Link href="/terms" className="underline text-[#6E6E6E]">Terms of Service</Link> and{' '}
           <Link href="/privacy" className="underline text-[#6E6E6E]">Privacy Notice</Link>.
         </small>
+
+        <p className="mt-5 text-sm text-[#6E6E6E]">
+          Don&apos;t have an account?{' '}
+          <Link href="/auth/register" className="font-semibold text-[#1A1A1A] underline underline-offset-2 hover:text-[#6E6E6E] transition-colors">
+            Sign up
+          </Link>
+        </p>
 
       </main>
     </div>

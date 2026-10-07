@@ -134,31 +134,23 @@ export const Navbar: React.FC = () => {
             </Link>
           </div>
 
-          {/* ── RIGHT: About▾ · Sign In · Start a Campaign ── */}
+          {/* ── RIGHT: About▾ · Auth ── */}
           <div className="hidden min-[900px]:flex items-center gap-1 ml-auto">
             {/* About Dropdown */}
             <div ref={aboutRef} className="relative">
               <button
                 type="button"
-                onClick={() => {
-                  setAboutOpen(!aboutOpen);
-                  setDonateOpen(false);
-                }}
+                onClick={() => { setAboutOpen(!aboutOpen); setDonateOpen(false); }}
                 className="flex items-center gap-1 text-[14px] font-semibold text-[#1A1A1A] hover:text-[#6E6E6E] px-2.5 py-1.5 rounded-lg hover:bg-[#F5F5F5] transition-colors"
               >
                 About
                 <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${aboutOpen ? 'rotate-180' : ''}`} />
               </button>
-
               {aboutOpen && (
                 <div className="absolute right-0 top-full mt-1.5 w-48 bg-white rounded-2xl shadow-xl border border-[#EBEBEB] py-2 z-50 hdr-drop">
                   {aboutLinks.map(({ label, href }) => (
-                    <Link
-                      key={label}
-                      href={href}
-                      onClick={() => setAboutOpen(false)}
-                      className="block px-4 py-2 text-[14px] font-medium text-[#1A1A1A] hover:bg-[#F5F5F5] transition-colors"
-                    >
+                    <Link key={label} href={href} onClick={() => setAboutOpen(false)}
+                      className="block px-4 py-2 text-[14px] font-medium text-[#1A1A1A] hover:bg-[#F5F5F5] transition-colors">
                       {label}
                     </Link>
                   ))}
@@ -166,22 +158,30 @@ export const Navbar: React.FC = () => {
               )}
             </div>
 
-            {/* Sign In */}
-            <Link
-              href="/auth/login"
-              className="text-[14px] font-semibold text-[#1A1A1A] hover:text-[#6E6E6E] px-3 py-1.5 rounded-lg hover:bg-[#F5F5F5] transition-colors"
-            >
-              Sign In
-            </Link>
-
-
-            {/* Start a Campaign CTA */}
-            <Link
-              href="/dashboard/campaigns/new"
-              className="btn-pill btn-lime btn-small ml-1"
-            >
-              Start a Campaign
-            </Link>
+            {isAuthenticated && user ? (
+              <div className="flex items-center gap-2 ml-1">
+                <Link href="/dashboard"
+                  className="text-[14px] font-semibold text-[#1A1A1A] hover:text-[#6E6E6E] px-3 py-1.5 rounded-lg hover:bg-[#F5F5F5] transition-colors">
+                  Dashboard
+                </Link>
+                <button onClick={logout}
+                  className="w-[34px] h-[34px] rounded-full bg-[#1A1A1A] text-white grid place-items-center font-semibold text-[13px] border-0 cursor-pointer hover:bg-[#333] transition-colors"
+                  title={`${user.firstName} ${user.lastName} — sign out`}>
+                  {user.firstName[0]}{user.lastName[0]}
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 ml-1">
+                <Link href="/auth/login"
+                  className="text-[14px] font-semibold text-[#1A1A1A] hover:text-[#6E6E6E] px-3 py-1.5 rounded-lg hover:bg-[#F5F5F5] transition-colors">
+                  Sign in
+                </Link>
+                <Link href="/auth/register"
+                  className="btn-pill btn-lime btn-small">
+                  Sign up
+                </Link>
+              </div>
+            )}
           </div>
 
           {/* ── MOBILE: hamburger ── */}
@@ -236,30 +236,29 @@ export const Navbar: React.FC = () => {
               </Link>
             </div>
             <div className="border-t border-[#EBEBEB] pt-4 mt-2 flex flex-col gap-2">
-              {isAuthenticated ? (
-                <Link
-                  href="/dashboard"
-                  onClick={() => setIsOpen(false)}
-                  className="w-full text-center bg-[#1A1A1A] text-white py-2.5 rounded-full font-semibold text-sm"
-                >
-                  Dashboard
-                </Link>
+              {isAuthenticated && user ? (
+                <>
+                  <Link href="/dashboard" onClick={() => setIsOpen(false)}
+                    className="w-full text-center bg-[#1A1A1A] text-white py-2.5 rounded-full font-semibold text-sm">
+                    Dashboard
+                  </Link>
+                  <button onClick={() => { logout(); setIsOpen(false); }}
+                    className="w-full text-center border border-[#1A1A1A] text-[#1A1A1A] py-2.5 rounded-full font-semibold text-sm hover:bg-[#F5F5F5] cursor-pointer bg-white">
+                    Sign out
+                  </button>
+                </>
               ) : (
-                <Link
-                  href="/auth/login"
-                  onClick={() => setIsOpen(false)}
-                  className="w-full text-center border border-[#1A1A1A] text-[#1A1A1A] py-2.5 rounded-full font-semibold text-sm hover:bg-[#F5F5F5]"
-                >
-                  Sign In
-                </Link>
+                <>
+                  <Link href="/auth/register" onClick={() => setIsOpen(false)}
+                    className="w-full text-center bg-[#CCF88E] text-[#1A1A1A] py-2.5 rounded-full font-semibold text-sm">
+                    Sign up
+                  </Link>
+                  <Link href="/auth/login" onClick={() => setIsOpen(false)}
+                    className="w-full text-center border border-[#1A1A1A] text-[#1A1A1A] py-2.5 rounded-full font-semibold text-sm hover:bg-[#F5F5F5]">
+                    Sign in
+                  </Link>
+                </>
               )}
-              <Link
-                href="/dashboard/campaigns/new"
-                onClick={() => setIsOpen(false)}
-                className="w-full text-center btn-pill btn-lime py-2.5"
-              >
-                Start a Campaign
-              </Link>
             </div>
           </div>
         )}
