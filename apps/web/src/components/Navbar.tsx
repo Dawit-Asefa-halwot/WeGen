@@ -8,10 +8,8 @@ import {
   ChevronDown,
   Menu,
   X,
-  User,
-  LogOut,
-  LayoutDashboard,
 } from 'lucide-react';
+
 import { useAuthStore } from '../lib/auth-store';
 
 const donateCategories = [
@@ -168,33 +166,14 @@ export const Navbar: React.FC = () => {
               )}
             </div>
 
-            {/* Auth */}
-            {isAuthenticated && user ? (
-              <div className="flex items-center gap-1">
-                <Link
-                  href={user.roles?.includes('ADMIN') ? '/admin' : '/dashboard'}
-                  className="flex items-center gap-1.5 text-[14px] font-semibold text-[#1A1A1A] hover:text-[#6E6E6E] px-3 py-1.5 rounded-lg hover:bg-[#F5F5F5] transition-colors"
-                >
-                  <LayoutDashboard className="w-4 h-4" />
-                  {user.roles?.includes('ADMIN') ? 'Admin' : 'Dashboard'}
-                </Link>
-                <button
-                  type="button"
-                  onClick={logout}
-                  title="Log Out"
-                  className="p-1.5 text-[#6E6E6E] hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                >
-                  <LogOut className="w-4 h-4" />
-                </button>
-              </div>
-            ) : (
-              <Link
-                href="/auth/login"
-                className="text-[14px] font-semibold text-[#1A1A1A] hover:text-[#6E6E6E] px-3 py-1.5 rounded-lg hover:bg-[#F5F5F5] transition-colors"
-              >
-                Sign In
-              </Link>
-            )}
+            {/* Sign In */}
+            <Link
+              href="/auth/login"
+              className="text-[14px] font-semibold text-[#1A1A1A] hover:text-[#6E6E6E] px-3 py-1.5 rounded-lg hover:bg-[#F5F5F5] transition-colors"
+            >
+              Sign In
+            </Link>
+
 
             {/* Start a Campaign CTA */}
             <Link
