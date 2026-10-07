@@ -3,90 +3,20 @@
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { Heart } from 'lucide-react';
+import { CAMPAIGN_DB } from '../../data/campaignDetailDb';
 
-/* ───────── Campaign Data ───────── */
-const CAMPAIGNS = [
-  {
-    id: 'c1',
-    title: 'Support Urgent Cardiac Surgery for 7-Year-Old Chala',
-    by: 'Benyam Hussen',
-    location: 'Addis Ababa',
-    goalEtb: 250000,
-    raisedEtb: 145000,
-    tab: 'fundraisers',
-    coverUrl: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=600&auto=format&fit=crop&q=80',
-  },
-  {
-    id: 'c2',
-    title: 'Emergency Clean Water Well for Somali Region',
-    by: 'Ethiopian Red Cross',
-    location: 'Jijiga',
-    goalEtb: 800000,
-    raisedEtb: 520000,
-    tab: 'nonprofits',
-    coverUrl: 'https://images.unsplash.com/photo-1541976844346-f18aeac57b06?w=600&auto=format&fit=crop&q=80',
-  },
-  {
-    id: 'c3',
-    title: 'Rebuilding Classroom Desks & Library for 400 Students',
-    by: 'Abiye Tekle',
-    location: 'Mekelle',
-    goalEtb: 180000,
-    raisedEtb: 92000,
-    tab: 'fundraisers',
-    coverUrl: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=600&auto=format&fit=crop&q=80',
-  },
-  {
-    id: 'c4',
-    title: 'Heart Surgery for Dawit, Age 6',
-    by: 'Hope Ethiopia',
-    location: 'Addis Ababa',
-    goalEtb: 650000,
-    raisedEtb: 535500,
-    tab: 'nonprofits',
-    coverUrl: 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=600&auto=format&fit=crop&q=80',
-  },
-  {
-    id: 'c5',
-    title: 'Cataract Surgery for W/ro Almaz',
-    by: 'Kidist M.',
-    location: 'Bahir Dar',
-    goalEtb: 250000,
-    raisedEtb: 210000,
-    tab: 'fundraisers',
-    coverUrl: 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80',
-  },
-  {
-    id: 'c6',
-    title: "School Fees for Sara's First Year at University",
-    by: 'Joel Adams',
-    location: 'Hawassa',
-    goalEtb: 120000,
-    raisedEtb: 37200,
-    tab: 'fundraisers',
-    coverUrl: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=600&auto=format&fit=crop&q=80',
-  },
-  {
-    id: 'c7',
-    title: 'Clean Water for Three Gurage Villages',
-    by: 'Gurage Development Assoc.',
-    location: 'Wolkite',
-    goalEtb: 900000,
-    raisedEtb: 720000,
-    tab: 'nonprofits',
-    coverUrl: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=600&auto=format&fit=crop&q=80',
-  },
-  {
-    id: 'c8',
-    title: 'A Wheelchair for Tigist, Age 12',
-    by: 'Regina Landor',
-    location: 'Dire Dawa',
-    goalEtb: 85000,
-    raisedEtb: 6500,
-    tab: 'fundraisers',
-    coverUrl: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=600&auto=format&fit=crop&q=80',
-  },
-];
+/* ───────── Derive unified campaign list from shared DB ───────── */
+const CAMPAIGNS = Object.values(CAMPAIGN_DB).map((c) => ({
+  id: c.id,
+  title: c.title,
+  by: c.creatorName,
+  location: c.location.split(',')[0].trim(),
+  goalEtb: c.goalEtb,
+  raisedEtb: c.raisedEtb,
+  coverUrl: c.coverImageUrl,
+  // Map to discover tabs: orgs with large goals = nonprofits, personal = fundraisers
+  tab: c.supporterCount > 100 ? 'nonprofits' : 'fundraisers',
+}));
 
 const TABS = [
   { id: 'fundraisers', label: 'Fundraisers' },
@@ -97,6 +27,8 @@ const TABS = [
 
 /* ───────── Helpers ───────── */
 const fmtNum = (n: number) => n.toLocaleString('en-US');
+
+
 
 export default function DiscoverPage() {
   const [query, setQuery] = useState('');

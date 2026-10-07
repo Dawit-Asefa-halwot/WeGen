@@ -759,18 +759,20 @@ export default function EthioFundLandingPage() {
           {filteredCampaigns.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredCampaigns.map((c) => (
-                <div 
-                  key={c.id} 
-                  className="bg-white rounded-3xl border border-[#EBEBEB] p-5 hover:shadow-md transition-shadow flex flex-col justify-between"
+                <Link
+                  key={c.id}
+                  href={`/campaign/${c.id}`}
+                  className="bg-white rounded-3xl border border-[#EBEBEB] p-5 flex flex-col justify-between cursor-pointer group transition-all duration-200 hover:shadow-lg hover:-translate-y-1 hover:border-[#B6EA6C]/60"
+                  style={{ textDecoration: 'none', color: 'inherit' }}
                 >
                   <div className="space-y-4">
                     {/* Photo Container */}
                     <div className="relative h-[210px] w-full rounded-[20px] overflow-hidden bg-gradient-to-tr from-[#CCF88E]/40 to-[#F1FBDF] flex items-center justify-center">
                       {PHOTOS[c.photoKey] ? (
-                        <img 
-                          src={PHOTOS[c.photoKey]} 
-                          alt={c.title} 
-                          className="w-full h-full object-cover"
+                        <img
+                          src={PHOTOS[c.photoKey]}
+                          alt={c.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         />
                       ) : (
                         <div className="text-center p-4">
@@ -784,11 +786,21 @@ export default function EthioFundLandingPage() {
                       <div className="absolute top-3 left-3 bg-[#CCF88E] text-[#1A1A1A] font-bold text-[11px] px-3 py-1 rounded-full uppercase tracking-wider border border-[#1A1A1A]/10">
                         {c.type === 'organization' ? 'Organization' : 'Verified'}
                       </div>
+
+                      {/* Donate CTA overlay on hover */}
+                      <div className="absolute inset-0 bg-[#1A1A1A]/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center rounded-[20px]">
+                        <span className="bg-white text-[#1A1A1A] font-bold text-sm px-5 py-2.5 rounded-full shadow-lg flex items-center gap-2">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                          </svg>
+                          Donate now
+                        </span>
+                      </div>
                     </div>
 
                     {/* Title & City */}
                     <div>
-                      <h3 className="font-heading font-bold text-lg leading-snug text-[#1A1A1A] line-clamp-2">
+                      <h3 className="font-heading font-bold text-lg leading-snug text-[#1A1A1A] line-clamp-2 group-hover:text-[#4A7A1A] transition-colors">
                         {c.title}
                       </h3>
                       <p className="text-xs text-[#6E6E6E] font-medium mt-1">
@@ -800,7 +812,7 @@ export default function EthioFundLandingPage() {
                   {/* Progress & Goal */}
                   <div className="mt-6 pt-4 border-t border-[#EBEBEB] space-y-2">
                     <div className="w-full h-[6px] bg-[#EBEBEB] rounded-full overflow-hidden">
-                      <div 
+                      <div
                         className="h-full bg-[#B6EA6C] rounded-full"
                         style={{ width: `${c.percent}%` }}
                       />
@@ -813,9 +825,10 @@ export default function EthioFundLandingPage() {
                     </div>
                   </div>
 
-                </div>
+                </Link>
               ))}
             </div>
+
           ) : (
             /* Empty State */
             <div className="border-2 border-dashed border-[#EBEBEB] rounded-3xl p-12 text-center space-y-4">
