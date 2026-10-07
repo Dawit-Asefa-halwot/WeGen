@@ -274,44 +274,112 @@ export default function EthioFundLandingPage() {
     <div className="min-h-screen flex flex-col bg-white text-[#1A1A1A] font-sans">
 
       {/* ==========================================
-          1. STICKY HEADER (64px)
+          1. STICKY HEADER — GoFundMe-style layout
+             Left: Search + Donate▾ (categories) + How It Works
+             Center: Logo
+             Right: About▾ + Sign In + Start a Campaign
       ========================================== */}
-      <header className="sticky top-0 z-50 h-16 bg-white/82 backdrop-blur-md border-b border-[#EBEBEB] transition-all">
-        <div className="max-w-[1120px] mx-auto px-6 h-full flex items-center justify-between">
-          
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5 focus-visible:outline-none">
-            <div className="w-[22px] h-[22px] rounded-full bg-[#CCF88E] border-2 border-[#1A1A1A] flex items-center justify-center shrink-0">
-              <div className="w-1.5 h-1.5 rounded-full bg-[#1A1A1A]" />
+      <style>{`
+        @keyframes hdrDrop {
+          from { opacity:0; transform:translateY(-6px) scale(.97); }
+          to   { opacity:1; transform:translateY(0)   scale(1);   }
+        }
+        .hdr-drop { animation: hdrDrop .16s ease; }
+      `}</style>
+      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-[#EBEBEB]">
+        <div className="max-w-[1120px] mx-auto px-6 h-[64px] flex items-center justify-between relative gap-4">
+
+          {/* ── LEFT: Search · Donate▾ · How It Works ── */}
+          <div className="hidden min-[900px]:flex items-center gap-0.5">
+            {/* Search */}
+            <a href="#campaigns"
+              className="flex items-center gap-1.5 text-[14px] font-semibold text-[#1A1A1A] hover:text-[#6E6E6E] px-2.5 py-1.5 rounded-lg hover:bg-[#F5F5F5] transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              Search
+            </a>
+
+            {/* Donate Dropdown */}
+            <div className="relative group">
+              <button className="flex items-center gap-1 text-[14px] font-semibold text-[#1A1A1A] hover:text-[#6E6E6E] px-2.5 py-1.5 rounded-lg hover:bg-[#F5F5F5] transition-colors">
+                Donate
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 transition-transform group-hover:rotate-180 duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="m6 9 6 6 6-6"/></svg>
+              </button>
+              <div className="absolute left-0 top-full mt-1.5 w-52 bg-white rounded-2xl shadow-xl border border-[#EBEBEB] py-2 hidden group-hover:block hdr-drop">
+                <p className="px-4 pt-1 pb-1 text-[10px] font-bold text-[#6E6E6E] uppercase tracking-widest">Categories</p>
+                {[
+                  { emoji: '🏥', label: 'Medical', href: '#campaigns' },
+                  { emoji: '🤝', label: 'Community', href: '#campaigns' },
+                  { emoji: '📚', label: 'Education', href: '#campaigns' },
+                  { emoji: '🌍', label: 'Emergency', href: '#campaigns' },
+                  { emoji: '🏢', label: 'Organizations', href: '#orgs' },
+                ].map(({ emoji, label, href }) => (
+                  <a key={label} href={href}
+                    className="flex items-center gap-3 px-4 py-2 text-[14px] font-medium text-[#1A1A1A] hover:bg-[#F5F5F5] transition-colors">
+                    <span className="text-base">{emoji}</span>{label}
+                  </a>
+                ))}
+              </div>
             </div>
-            <span className="text-[19px] font-bold tracking-tight text-[#1A1A1A]">
-              Ethio Fund
-            </span>
-          </Link>
 
-          {/* Center Nav (Hidden below 900px) */}
-          <nav className="hidden min-[900px]:flex items-center gap-8 text-[15px] font-medium text-[#1A1A1A]">
-            <a href="#ways" className="hover:text-[#6E6E6E] transition-colors">How it works</a>
-            <a href="#trust" className="hover:text-[#6E6E6E] transition-colors">Verification</a>
-            <a href="#campaigns" className="hover:text-[#6E6E6E] transition-colors">Campaigns</a>
-            <a href="#orgs" className="hover:text-[#6E6E6E] transition-colors">Organizations</a>
-          </nav>
+            {/* How It Works */}
+            <a href="#ways"
+              className="text-[14px] font-semibold text-[#1A1A1A] hover:text-[#6E6E6E] px-2.5 py-1.5 rounded-lg hover:bg-[#F5F5F5] transition-colors">
+              How It Works
+            </a>
+          </div>
 
-          {/* Right Action Buttons */}
-          <div className="flex items-center gap-3">
-            <Link 
-              href="/auth/login" 
-              className="btn-pill btn-outline btn-small"
-            >
-              Log in
-            </Link>
-            <Link 
-              href="/dashboard/campaigns/new" 
-              className="btn-pill btn-lime btn-small"
-            >
-              Start a campaign
+          {/* ── CENTER: Logo (absolutely centered) ── */}
+          <div className="absolute left-1/2 -translate-x-1/2">
+            <Link href="/" className="flex items-center gap-2.5 focus-visible:outline-none">
+              <div className="w-[22px] h-[22px] rounded-full bg-[#CCF88E] border-2 border-[#1A1A1A] flex items-center justify-center shrink-0">
+                <div className="w-1.5 h-1.5 rounded-full bg-[#1A1A1A]" />
+              </div>
+              <span className="text-[19px] font-bold tracking-tight text-[#1A1A1A]">
+                WeGen
+              </span>
             </Link>
           </div>
+
+          {/* ── RIGHT: About▾ · Sign In · Start a Campaign ── */}
+          <div className="hidden min-[900px]:flex items-center gap-1 ml-auto">
+            {/* About Dropdown */}
+            <div className="relative group">
+              <button className="flex items-center gap-1 text-[14px] font-semibold text-[#1A1A1A] hover:text-[#6E6E6E] px-2.5 py-1.5 rounded-lg hover:bg-[#F5F5F5] transition-colors">
+                About
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 transition-transform group-hover:rotate-180 duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="m6 9 6 6 6-6"/></svg>
+              </button>
+              <div className="absolute right-0 top-full mt-1.5 w-48 bg-white rounded-2xl shadow-xl border border-[#EBEBEB] py-2 hidden group-hover:block hdr-drop">
+                {[
+                  { label: 'About WeGen', href: '/about' },
+                  { label: 'How It Works', href: '#ways' },
+                  { label: 'Blog', href: '#' },
+                  { label: 'Contact Us', href: '#' },
+                ].map(({ label, href }) => (
+                  <a key={label} href={href}
+                    className="block px-4 py-2 text-[14px] font-medium text-[#1A1A1A] hover:bg-[#F5F5F5] transition-colors">
+                    {label}
+                  </a>
+                ))}
+              </div>
+            </div>
+
+            {/* Sign In */}
+            <Link href="/auth/login"
+              className="text-[14px] font-semibold text-[#1A1A1A] hover:text-[#6E6E6E] px-3 py-1.5 rounded-lg hover:bg-[#F5F5F5] transition-colors">
+              Sign In
+            </Link>
+
+            {/* Start a Campaign CTA */}
+            <Link href="/dashboard/campaigns/new"
+              className="btn-pill btn-lime btn-small ml-1">
+              Start a Campaign
+            </Link>
+          </div>
+
+          {/* ── MOBILE: hamburger placeholder ── */}
+          <button className="min-[900px]:hidden ml-auto p-2 rounded-lg hover:bg-[#F5F5F5]" aria-label="Open menu">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
 
         </div>
       </header>
