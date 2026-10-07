@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useRef } from "react";
 import Link from "next/link";
@@ -33,6 +33,8 @@ interface Org { id: number; n: string; c: string; l: string; v: boolean; bg: str
 const fmt = (n: number) => n.toLocaleString("en-US");
 const initials = (name: string) =>
   name.split(" ").filter(w => /^[A-Za-z\u1200-\u137F]/.test(w)).slice(0, 2).map(w => w[0]).join("").toUpperCase();
+const slugify = (name: string) =>
+  name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 const renews = (plan: Plan) => {
   const d = new Date();
   plan === "yearly" ? d.setFullYear(d.getFullYear() + 1) : d.setMonth(d.getMonth() + 1);
@@ -131,7 +133,33 @@ export default function CharitySetupPage() {
     }
     setPayError("");
     setBusy(true);
-    setTimeout(() => { setBusy(false); setStep("done"); }, 1300);
+    setTimeout(() => {
+      // Persist org session → /org/[slug] reads this on mount
+      if (selectedOrg && typeof window !== "undefined") {
+        const renewDate = new Date();
+        plan === "yearly"
+          ? renewDate.setFullYear(renewDate.getFullYear() + 1)
+          : renewDate.setMonth(renewDate.getMonth() + 1);
+        localStorage.setItem("ethiofund-org", JSON.stringify({
+          name:      selectedOrg.n,
+          category:  selectedOrg.c,
+          location:  selectedOrg.l,
+          verified:  selectedOrg.v,
+          bg:        selectedOrg.bg,
+          banner:    banner ?? null,
+          isNew,
+          plan,
+          planLabel: PLANS[plan].label,
+          price:     PLANS[plan].price,
+          per:       PLANS[plan].per,
+          cap:       plan === "monthly" ? 15 : 0,
+          renews:    renewDate.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
+          openedAt:  Date.now(),
+        }));
+      }
+      setBusy(false);
+      setStep("done");
+    }, 1300);
   };
 
   // ─── Banner upload ─────────────────────────────────────────────────────────
@@ -462,16 +490,12 @@ export default function CharitySetupPage() {
                 )}
 
                 <div className="flex flex-wrap gap-3 mt-2">
-                  <Link href="/dashboard/campaigns/new"
-                    className="bg-[#CCF88E] hover:bg-[#B6EA6C] text-[#1A1A1A] font-semibold rounded-full px-6 py-3 transition-colors">
-                    Create your first campaign
+                  <Link
+                    href={`/org/${slugify(selectedOrg.n)}`}
+                    className="bg-[#1A1A1A] hover:bg-black text-white font-semibold rounded-full px-6 py-3 transition-colors"
+                  >
+                    View my organization
                   </Link>
-                  {!selectedOrg.v && (
-                    <Link href="/dashboard"
-                      className="border-[1.5px] border-[#1A1A1A] bg-white hover:bg-[#F6F6F6] text-[#1A1A1A] font-semibold rounded-full px-6 py-3 transition-colors">
-                      Verify my organization
-                    </Link>
-                  )}
                 </div>
               </div>
             )}
