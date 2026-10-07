@@ -48,6 +48,7 @@ export default function NewCampaignWizardPage() {
   const [autoGoal, setAutoGoal] = useState<boolean>(true);
   const [photo, setPhoto] = useState<string>('');
   const [smallPhoto, setSmallPhoto] = useState<boolean>(false);
+  const [extraPhotos, setExtraPhotos] = useState<string[]>([]);
   const [ytUrl, setYtUrl] = useState<string>('');
   const [story, setStory] = useState<string>('');
   const [title, setTitle] = useState<string>('');
@@ -74,6 +75,7 @@ export default function NewCampaignWizardPage() {
         if (d.story) setStory(d.story);
         if (d.title) setTitle(d.title);
         if (d.org) setSelectedOrg(d.org);
+        if (d.extraPhotos) setExtraPhotos(d.extraPhotos);
       }
     } catch (e) {
       // Ignore storage errors
@@ -83,12 +85,12 @@ export default function NewCampaignWizardPage() {
   // Save Draft Changes
   useEffect(() => {
     try {
-      const draft = { city, cat, who, goal, auto: autoGoal, yt: ytUrl, story, title, org: selectedOrg };
+      const draft = { city, cat, who, goal, auto: autoGoal, yt: ytUrl, story, title, org: selectedOrg, extraPhotos };
       localStorage.setItem(KEY, JSON.stringify(draft));
     } catch (e) {
       // Ignore
     }
-  }, [city, cat, who, goal, autoGoal, ytUrl, story, title, selectedOrg]);
+  }, [city, cat, who, goal, autoGoal, ytUrl, story, title, selectedOrg, extraPhotos]);
 
   // Helpers
   const numVal = (v: string) => Number(String(v).replace(/\D/g, '')) || 0;
@@ -105,10 +107,11 @@ export default function NewCampaignWizardPage() {
     if (step === 4) return Boolean(photo || isYtOk(ytUrl));
     if (step === 5) return wordCount(story) >= MIN_WORDS;
     if (step === 6) return Boolean(title.trim());
+    if (step === 7) return true;
     return true;
   };
 
-  // Image Upload Handler
+  // Image Upload Handler (Cover Photo)
   const handleFileUpload = (file?: File) => {
     setFileError('');
     if (!file) return;
@@ -129,6 +132,29 @@ export default function NewCampaignWizardPage() {
     reader.readAsDataURL(file);
   };
 
+  // Extra Photos Upload Handler
+  const handleExtraPhotoUpload = (file?: File) => {
+    setFileError('');
+    if (!file) return;
+    if (!/^image\//.test(file.type) || file.size > 10 * 1024 * 1024) {
+      setFileError('Choose an image under 10 MB.');
+      return;
+    }
+    if (extraPhotos.length >= 5) {
+      setFileError('Maximum 5 additional photos.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setExtraPhotos((prev) => [...prev, reader.result as string]);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeExtraPhoto = (index: number) => {
+    setExtraPhotos((prev) => prev.filter((_, i) => i !== index));
+  };
+
   // Submission Handler
   const handleFinalSubmit = async () => {
     setIsSubmitting(true);
@@ -143,6 +169,7 @@ export default function NewCampaignWizardPage() {
       story,
       ytUrl,
       coverImageUrl: photo || (ytUrl ? 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800&auto=format&fit=crop&q=80' : ''),
+      extraPhotos,
       createdAt: Date.now(),
     };
 
@@ -175,7 +202,7 @@ export default function NewCampaignWizardPage() {
       setSubStepCharity(true);
       return;
     }
-    if (step === 6) {
+    if (step === 7) {
       handleFinalSubmit();
     } else {
       setStep((prev) => prev + 1);
@@ -497,34 +524,100 @@ export default function NewCampaignWizardPage() {
                   {step === 4 && (
                     <div className="space-y-6">
                       {photo ? (
-                        <div>
-                          <h2 className="font-heading font-bold text-[22px] leading-snug mb-3">Cover photo</h2>
-                          <div className="rounded-2xl overflow-hidden bg-[#1A1A1A] aspect-video">
-                            <img src={photo} alt="Cover preview" className="w-full h-full object-cover" />
-                          </div>
-                          {smallPhoto && (
-                            <div className="bg-[#E5F6F8] rounded-xl p-3.5 text-xs text-[#1A1A1A] mt-3">
-                              <b>This image is small.</b> For it to display well, use a photo at least 720 × 405 pixels.
+                        <div className="space-y-8">
+                          {/* ── Cover Photo Preview ── */}
+                          <div>
+                            <h2 className="font-heading font-bold text-[22px] leading-snug mb-1">Add a cover photo or video</h2>
+                            <p className="text-[#6E6E6E] text-sm mb-4">Cover media helps tell your story. You can change it later.</p>
+                            <div className="rounded-2xl overflow-hidden bg-[#1A1A1A] aspect-video relative">
+                              <img src={photo} alt="Cover preview" className="w-full h-full object-cover" />
+                              <span className="absolute top-3 left-3 bg-white/90 backdrop-blur-md px-3 py-1 rounded-full text-[11px] font-bold text-[#1A1A1A] shadow-sm">
+                                Cover photo
+                              </span>
                             </div>
-                          )}
-                          <div className="flex justify-center gap-4 mt-3">
-                            <label className="font-semibold text-sm underline cursor-pointer">
-                              Replace
+                            {smallPhoto && (
+                              <div className="bg-[#E5F6F8] rounded-xl p-3.5 text-xs text-[#1A1A1A] mt-3">
+                                <b>This image is small.</b> For it to display well, use a photo at least 720 × 405 pixels.
+                              </div>
+                            )}
+                            <div className="flex justify-center gap-6 mt-3">
+                              <label className="font-semibold text-sm underline cursor-pointer text-[#1A1A1A] hover:text-[#6E6E6E] transition-colors">
+                                Replace ↻
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={(e) => handleFileUpload(e.target.files?.[0])}
+                                  className="hidden"
+                                />
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => { setPhoto(''); setSmallPhoto(false); }}
+                                className="font-semibold text-sm underline text-[#B3261E] hover:text-[#8c1c16] transition-colors"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* ── Additional Photos (Optional) ── */}
+                          <div>
+                            <div className="flex items-baseline gap-2 mb-1">
+                              <h3 className="font-heading font-bold text-[18px] leading-snug">Add more images</h3>
+                              <span className="text-[#6E6E6E] text-sm">(Optional)</span>
+                            </div>
+                            <p className="text-[#6E6E6E] text-sm mb-4">
+                              These images will be used to create posts and messages for you and your network to share.
+                            </p>
+
+                            <div className="flex flex-wrap gap-3">
+                              {/* Existing Extra Photo Thumbnails */}
+                              {extraPhotos.map((ep, idx) => (
+                                <div key={idx} className="relative w-[130px] h-[100px] rounded-xl overflow-hidden bg-[#F6F6F6] group">
+                                  <img src={ep} alt={`Photo ${idx + 2}`} className="w-full h-full object-cover" />
+                                  <button
+                                    type="button"
+                                    onClick={() => removeExtraPhoto(idx)}
+                                    className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-[#1A1A1A]/70 text-white text-xs font-bold grid place-items-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[#B3261E]"
+                                    title="Remove photo"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                              ))}
+
+                              {/* Add More Photos Button */}
+                              {extraPhotos.length < 5 && (
+                                <label className="w-[130px] h-[100px] border-2 border-dashed border-[#bdbdbd] rounded-xl flex flex-col items-center justify-center gap-1.5 cursor-pointer hover:bg-[#F6F6F6] hover:border-[#1A1A1A] transition-colors">
+                                  <span className="text-2xl">🖼️</span>
+                                  <span className="text-[12px] font-semibold text-[#6E6E6E] text-center leading-tight">Add more<br />photos</span>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(e) => { handleExtraPhotoUpload(e.target.files?.[0]); if (e.target) e.target.value = ''; }}
+                                    className="hidden"
+                                  />
+                                </label>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* ── YouTube Link ── */}
+                          <div>
+                            <h3 className="font-heading font-bold text-[18px] leading-snug mb-1">YouTube video link</h3>
+                            <p className="text-[#6E6E6E] text-sm mb-3">(Optional) Add a video to tell your story in your own words.</p>
+                            <label className="fld block">
                               <input
-                                type="file"
-                                accept="image/*"
-                                onChange={(e) => handleFileUpload(e.target.files?.[0])}
-                                className="hidden"
+                                type="url"
+                                value={ytUrl}
+                                onChange={(e) => setYtUrl(e.target.value)}
+                                placeholder="Paste a YouTube link"
+                                className="w-full border-0 outline-none text-[17px] bg-transparent"
                               />
                             </label>
-                            <button
-                              type="button"
-                              onClick={() => { setPhoto(''); setSmallPhoto(false); }}
-                              className="font-semibold text-sm underline text-[#B3261E]"
-                            >
-                              Remove
-                            </button>
                           </div>
+
+                          {fileError && <p className="text-[#B3261E] text-xs mt-2">{fileError}</p>}
                         </div>
                       ) : (
                         <div>
@@ -597,7 +690,7 @@ export default function NewCampaignWizardPage() {
                     </div>
                   )}
 
-                  {/* STEP 6: CAMPAIGN TITLE & REVIEW */}
+                  {/* STEP 6: CAMPAIGN TITLE */}
                   {step === 6 && (
                     <div className="space-y-6">
                       <label className="fld block border p-4 rounded-2xl">
@@ -606,15 +699,20 @@ export default function NewCampaignWizardPage() {
                             value={title}
                             maxLength={60}
                             onChange={(e) => setTitle(e.target.value)}
-                            placeholder="Help Dawit get heart surgery…"
+                            placeholder="Donate to help…"
                             className="w-full border-0 outline-none text-[17px] bg-transparent"
                           />
                           <b className="text-xs font-normal text-[#6E6E6E] shrink-0">{60 - title.length}</b>
                         </div>
                       </label>
+                    </div>
+                  )}
 
+                  {/* STEP 7: REVIEW */}
+                  {step === 7 && (
+                    <div className="space-y-6">
                       {/* REVIEW SUMMARY */}
-                      <div className="divide-y divide-[#EBEBEB] pt-4">
+                      <div className="divide-y divide-[#EBEBEB]">
                         {photo && (
                           <div className="pb-4">
                             <div className="rounded-2xl overflow-hidden bg-[#1A1A1A] aspect-video max-h-[180px]">
@@ -625,18 +723,18 @@ export default function NewCampaignWizardPage() {
 
                         <div className="flex items-start justify-between gap-4 py-3.5">
                           <div>
-                            <small className="text-xs text-[#6E6E6E] block">Cover media</small>
-                            <p className="text-sm font-medium text-[#1A1A1A]">{photo ? 'Photo added' : ytUrl ? ytUrl : 'No cover media yet'}</p>
-                          </div>
-                          <button type="button" onClick={() => setStep(4)} className="btn-pill btn-outline btn-small">Edit</button>
-                        </div>
-
-                        <div className="flex items-start justify-between gap-4 py-3.5">
-                          <div>
                             <small className="text-xs text-[#6E6E6E] block">Title</small>
                             <p className="text-sm font-medium text-[#1A1A1A]">{title || 'Untitled'}</p>
                           </div>
                           <button type="button" onClick={() => setStep(6)} className="btn-pill btn-outline btn-small">Edit</button>
+                        </div>
+
+                        <div className="flex items-start justify-between gap-4 py-3.5">
+                          <div>
+                            <small className="text-xs text-[#6E6E6E] block">Cover media</small>
+                            <p className="text-sm font-medium text-[#1A1A1A]">{photo ? 'Photo added' : ytUrl ? ytUrl : 'No cover media yet'}</p>
+                          </div>
+                          <button type="button" onClick={() => setStep(4)} className="btn-pill btn-outline btn-small">Edit</button>
                         </div>
 
                         <div className="flex items-start justify-between gap-4 py-3.5">
@@ -689,7 +787,7 @@ export default function NewCampaignWizardPage() {
               {/* Progress line */}
               <div
                 className="absolute top-[-1px] left-0 h-[2px] bg-[#1A1A1A] transition-all duration-400"
-                style={{ width: `${(step / 6) * 100}%` }}
+                style={{ width: `${(step / 7) * 100}%` }}
               />
 
               {/* Back Button */}
@@ -725,7 +823,7 @@ export default function NewCampaignWizardPage() {
                   onClick={handleNext}
                   className="btn-pill btn-dark"
                 >
-                  {isSubmitting ? 'Submitting...' : step === 5 ? 'Review' : step === 6 ? 'Submit for review' : 'Continue'}
+                  {isSubmitting ? 'Submitting...' : step === 6 ? 'Review' : step === 7 ? 'Submit for review' : 'Continue'}
                 </button>
               )}
             </div>
