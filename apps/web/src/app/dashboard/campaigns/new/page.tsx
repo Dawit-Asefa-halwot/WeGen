@@ -4,6 +4,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { apiRequest } from '../../../../lib/api-client';
+import { useAuthStore } from '../../../../lib/auth-store';
+import AuthGateModal from '../../../../components/AuthGateModal';
 
 const KEY = 'ethiofund-draft';
 const MIN_WORDS = 50;
@@ -36,10 +38,15 @@ const CHARITIES = [
 
 export default function NewCampaignWizardPage() {
   const router = useRouter();
+  const { isAuthenticated, checkAuth } = useAuthStore();
   const [step, setStep] = useState<number>(1);
   const [subStepCharity, setSubStepCharity] = useState<boolean>(false);
   const [isDone, setIsDone] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  // null = closed; '__step3__' = advance wizard after auth; any URL = navigate there
+  const [authGate, setAuthGate] = useState<string | null>(null);
+
+  useEffect(() => { checkAuth(); }, [checkAuth]);
 
 
   // Form State
@@ -201,16 +208,38 @@ export default function NewCampaignWizardPage() {
   // Navigation Logic
   const handleNext = () => {
     if (!isStepOk()) return;
-    // When user picks Charity, redirect to the dedicated charity setup flow
-    if (step === 2 && who === 'org') {
-      router.push('/dashboard/campaigns/charity-setup');
-      return;
+
+    // Step 2: user has chosen who they raise for — gate auth here
+    if (step === 2) {
+      if (!isAuthenticated) {
+        // For charity → after auth redirect to charity-setup
+        // For yourself/someone else → after auth advance to step 3
+        setAuthGate(who === 'org' ? '/dashboard/campaigns/charity-setup' : '__step3__');
+        return;
+      }
+      // Already authenticated:
+      if (who === 'org') {
+        router.push('/dashboard/campaigns/charity-setup');
+        return;
+      }
     }
+
     if (step === 7) {
       handleFinalSubmit();
     } else {
       setStep((prev) => prev + 1);
       window.scrollTo(0, 0);
+    }
+  };
+
+  // Called by AuthGateModal after successful sign in / sign up
+  const afterAuth = (next: string) => {
+    setAuthGate(null);
+    if (next === '__step3__') {
+      setStep(3);
+      window.scrollTo(0, 0);
+    } else {
+      router.push(next);
     }
   };
 
@@ -870,6 +899,15 @@ export default function NewCampaignWizardPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Auth gate — slides up when unauthenticated user clicks Continue on step 2 */}
+      {authGate && (
+        <AuthGateModal
+          next={authGate}
+          onClose={() => setAuthGate(null)}
+          onSuccess={afterAuth}
+        />
       )}
 
     </div>
