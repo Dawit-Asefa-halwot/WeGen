@@ -152,8 +152,9 @@ export const DonationModal: React.FC<DonationModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm overflow-y-auto p-4 flex items-center justify-center">
-      <div className="relative w-full max-w-[720px] bg-white rounded-[28px] min-[560px]:rounded-[40px] p-6 min-[560px]:p-10 shadow-2xl my-8 text-[#1A1A1A]">
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm overflow-y-auto">
+      <div className="min-h-full flex justify-center items-start p-4 sm:p-6">
+        <div className="relative w-full max-w-[720px] bg-white rounded-[28px] min-[560px]:rounded-[40px] p-6 min-[560px]:p-10 shadow-2xl mt-2 mb-8 sm:mt-12 sm:mb-12 text-[#1A1A1A]">
         
         {/* Close Modal Button */}
         <button
@@ -444,6 +445,7 @@ export const DonationModal: React.FC<DonationModalProps> = ({
           </div>
         )}
 
+        </div>
       </div>
     </div>
   );
