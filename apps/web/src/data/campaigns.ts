@@ -119,7 +119,6 @@ export const CAMPAIGN_DATA: Campaign[] = [
 export const HERO_SLIDES = [
   {
     id: 1,
-    eyebrow: 'Verified fundraising · Made for Ethiopia',
     amharic: 'አብረን',
     english: 'Fundraising for Ethiopia you can trust.',
     lead: 'Share your story with a video, documents and a few words. We verify every campaign, so donors give with confidence and help reaches the right person.',
@@ -127,7 +126,6 @@ export const HERO_SLIDES = [
       { text: 'Start a campaign', type: 'dark', href: '/dashboard/campaigns/new' },
       { text: 'Browse campaigns', type: 'outline', href: '#campaigns' },
     ],
-    trustLine: 'Give with Telebirr, Chapa or card. Every campaign is reviewed by our team.',
     card: {
       photoKey: 'dawit',
       title: 'Heart surgery for Dawit, age 6',
@@ -136,14 +134,9 @@ export const HERO_SLIDES = [
       raisedEtb: 402000,
       percent: 62,
     },
-    chips: [
-      '✓ Verified before it goes live',
-      'Give in Birr · Telebirr · Chapa · Card',
-    ],
   },
   {
     id: 2,
-    eyebrow: 'Cataract surgery · Bahir Dar',
     amharic: 'ተስፋ',
     english: 'Help her see her grandchildren again.',
     lead: 'A verified campaign, reviewed by our team. Every gift brings her closer to her surgery.',
@@ -159,13 +152,9 @@ export const HERO_SLIDES = [
       raisedEtb: 210000,
       percent: 84,
     },
-    chips: [
-      '✓ Verified before it goes live',
-    ],
   },
   {
     id: 3,
-    eyebrow: 'University fees · Hawassa',
     amharic: 'ትምህርት',
     english: 'Be the reason she walks through the university gates.',
     lead: 'A verified campaign, reviewed by our team. Help cover her first year of university.',
@@ -181,9 +170,6 @@ export const HERO_SLIDES = [
       raisedEtb: 37200,
       percent: 31,
     },
-    chips: [
-      '✓ Verified before it goes live',
-    ],
   },
 ];
 

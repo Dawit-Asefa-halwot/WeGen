@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { 
-  Heart, ShieldCheck, PlusCircle, User, ArrowRight, Play, Pause, 
+  Heart, PlusCircle, User, ArrowRight, Play, Pause, 
   ChevronRight, CheckCircle2, RotateCcw 
 } from 'lucide-react';
 import { CAMPAIGN_DATA, HERO_SLIDES, STORIES, PHOTOS, Campaign } from '../data/campaigns';
@@ -407,32 +407,27 @@ export default function EthioFundLandingPage() {
         <div className="relative z-10 max-w-[1120px] mx-auto px-6 w-full my-auto">
           <div className="grid grid-cols-1 min-[900px]:grid-cols-[1.3fr_1fr] gap-12 items-center min-h-[500px]">
 
-            {/* TEXT COLUMN */}
-            <div className="space-y-6 transition-all duration-700">
-              {/* Eyebrow Pill */}
-              <div className="inline-flex items-center gap-2 bg-white/70 backdrop-blur-md px-3.5 py-1.5 rounded-full text-xs font-semibold text-[#1A1A1A] border border-white/60">
-                <span className="w-2 h-2 rounded-full bg-[#1A1A1A]" />
-                <span>{slide.eyebrow}</span>
-              </div>
+            {/* TEXT COLUMN — static, never changes with slide */}
+            <div className="space-y-6">
 
               {/* H1 Heading */}
               <div className="space-y-1">
                 <h1 className="text-[clamp(88px,12vw,208px)] font-bold leading-[1.02] tracking-normal text-[#1A1A1A] block">
-                  {slide.amharic}
+                  {HERO_SLIDES[0].amharic}
                 </h1>
                 <p className="text-[clamp(24px,3.5vw,46px)] font-medium leading-[1.15] text-[#1A1A1A] max-w-[14em]">
-                  {slide.english}
+                  {HERO_SLIDES[0].english}
                 </p>
               </div>
 
               {/* Lead Paragraph */}
               <p className="text-[#1A1A1A]/80 text-base min-[900px]:text-lg max-w-[500px] leading-relaxed">
-                {slide.lead}
+                {HERO_SLIDES[0].lead}
               </p>
 
               {/* Action Buttons */}
               <div className="flex flex-wrap items-center gap-4 pt-2">
-                {slide.buttons.map((btn, idx) => (
+                {HERO_SLIDES[0].buttons.map((btn, idx) => (
                   <Link
                     key={idx}
                     href={btn.href}
@@ -442,14 +437,6 @@ export default function EthioFundLandingPage() {
                   </Link>
                 ))}
               </div>
-
-              {/* Slide 1 Extra Trust Line */}
-              {slide.trustLine && (
-                <p className="text-xs font-medium text-[#1A1A1A]/70 pt-2 flex items-center gap-1.5">
-                  <ShieldCheck className="w-4 h-4 shrink-0 text-[#1A1A1A]" />
-                  <span>{slide.trustLine}</span>
-                </p>
-              )}
             </div>
 
             {/* FEATURED CARD COLUMN */}
@@ -536,17 +523,7 @@ export default function EthioFundLandingPage() {
                   </div>
                 )}
 
-                {/* Floating Chips (Hidden on Mobile) */}
-                <div className="hidden min-[900px]:block">
-                  <div className="absolute top-[-20px] left-[-30px] bg-white px-3.5 py-2 rounded-full text-xs font-bold shadow-lg border border-[#EBEBEB] animate-bob z-20">
-                    {slide.chips[0]}
-                  </div>
-                  {slide.chips[1] && (
-                    <div className="absolute bottom-[-20px] right-[-30px] bg-white px-3.5 py-2 rounded-full text-xs font-bold shadow-lg border border-[#EBEBEB] animate-bob-delayed z-20">
-                      {slide.chips[1]}
-                    </div>
-                  )}
-                </div>
+                {/* Floating Chips — removed */}
 
               </div>
             </div>
