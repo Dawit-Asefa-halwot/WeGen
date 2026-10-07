@@ -292,7 +292,7 @@ export default function EthioFundLandingPage() {
           {/* ── LEFT: Search · Donate▾ · How It Works ── */}
           <div className="hidden min-[900px]:flex items-center gap-0.5">
             {/* Search */}
-            <a href="#campaigns"
+            <a href="/discover"
               className="flex items-center gap-1.5 text-[14px] font-semibold text-[#1A1A1A] hover:text-[#6E6E6E] px-2.5 py-1.5 rounded-lg hover:bg-[#F5F5F5] transition-colors">
               <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
               Search
