@@ -1,22 +1,27 @@
-'use client';
+﻿'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { apiRequest } from '../../../lib/api-client';
 import { useAuthStore } from '../../../lib/auth-store';
 
+// ── Admin credentials (demo / prototype) ──
+const ADMIN_EMAIL    = 'admin@wegen.et';
+const ADMIN_PASSWORD = 'Admin@2026';
+
 export default function LoginPage() {
-  const router = useRouter();
+  const router       = useRouter();
   const searchParams = useSearchParams();
-  const setAuth = useAuthStore((s) => s.setAuth);
+  const setAuth      = useAuthStore((s) => s.setAuth);
 
-  const [email, setEmail] = useState('');
-  const [errorMsg, setErrorMsg] = useState('');
+  const [email,        setEmail]        = useState('');
+  const [password,     setPassword]     = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [errorMsg,     setErrorMsg]     = useState('');
   const [socialNotice, setSocialNotice] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading,      setLoading]      = useState(false);
 
-  // Next URL after login
   const nextUrl = searchParams.get('next') || '/dashboard';
 
   const validateEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e.trim());
@@ -24,7 +29,7 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSocialNotice('');
-    
+
     if (!validateEmail(email)) {
       setErrorMsg('Enter a valid email address.');
       return;
@@ -33,14 +38,31 @@ export default function LoginPage() {
     setErrorMsg('');
     setLoading(true);
 
+    // ── Check admin credentials ──
+    if (email.trim().toLowerCase() === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+      setAuth(
+        {
+          id: 'admin-001',
+          email: ADMIN_EMAIL,
+          firstName: 'WeGen',
+          lastName: 'Admin',
+          roles: ['ADMIN', 'FUNDRAISER'],
+          isEmailVerified: true,
+        },
+        'admin-demo-token'
+      );
+      localStorage.setItem('ethiofund-user', JSON.stringify({ email: ADMIN_EMAIL }));
+      setLoading(false);
+      router.push('/admin');
+      return;
+    }
+
     try {
-      // Save local user draft
       localStorage.setItem('ethiofund-user', JSON.stringify({ email: email.trim() }));
 
-      // API authentication attempt
       const res = await apiRequest('/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email: email.trim(), password: 'Password123!' }),
+        body: JSON.stringify({ email: email.trim(), password: password || 'Password123!' }),
       });
 
       setLoading(false);
@@ -52,7 +74,6 @@ export default function LoginPage() {
           return;
         }
       } else {
-        // Fallback local auth for demo mode
         setAuth(
           {
             id: 'u1',
@@ -65,25 +86,24 @@ export default function LoginPage() {
           'demo-access-token'
         );
       }
-      
+
       router.push(nextUrl);
-    } catch (err) {
+    } catch {
       setLoading(false);
-      // Fallback redirect for offline demo
       router.push(nextUrl);
     }
   };
 
   const handleSocialClick = (provider: string) => {
     setErrorMsg('');
-    setSocialNotice(`${provider} sign-in isn’t connected yet. Use your email for now.`);
+    setSocialNotice(`${provider} sign-in isn't connected yet. Use your email for now.`);
   };
 
   return (
     <div className="min-h-svh bg-[#E4E4E4] text-[#1A1A1A] font-sans grid place-items-center p-6 antialiased">
       <main className="relative bg-white rounded-[28px] min-[520px]:rounded-[40px] w-full max-w-[520px] p-[60px_22px_28px] min-[520px]:p-[64px_44px_40px] text-center shadow-[0_24px_80px_rgba(0,0,0,0.18)]">
-        
-        {/* Close Button (.x) */}
+
+        {/* Close */}
         <Link
           href="/"
           className="absolute top-[22px] right-[26px] w-[40px] h-[40px] grid place-items-center rounded-full text-[#1A1A1A] hover:bg-[#F6F6F6] text-xl transition-colors"
@@ -92,41 +112,35 @@ export default function LoginPage() {
           ✕
         </Link>
 
-        {/* Brand Logo */}
-        <div className="inline-flex items-center gap-[9px] font-heading font-bold text-[17px] mb-5.5 text-[#1A1A1A]">
+        {/* Logo */}
+        <div className="inline-flex items-center gap-[9px] font-heading font-bold text-[17px] mb-5 text-[#1A1A1A]">
           <i className="w-[20px] h-[20px] rounded-full bg-[#CCF88E] border-2 border-[#1A1A1A] inline-block shrink-0 not-italic" />
-          Ethio Fund
+          WeGen
         </div>
 
-        {/* Heading */}
         <h1 className="font-heading font-bold text-[34px] leading-tight tracking-tight text-[#1A1A1A]">
-          Welcome
+          Welcome back
         </h1>
-        <p className="mt-2 mb-6.5 text-[#1A1A1A] text-base">
-          Sign in to Ethio Fund or sign up to continue.
+        <p className="mt-2 mb-6 text-[#1A1A1A] text-base">
+          Sign in to WeGen to continue.
         </p>
 
-        {/* Social Sign-In Buttons */}
+        {/* Social buttons */}
         <div className="space-y-3 mb-5">
           <button
             type="button"
             onClick={() => handleSocialClick('Google')}
             className="flex items-center justify-center gap-3 w-full border border-[#d6d6d6] bg-white rounded-full p-[15px] font-semibold text-base hover:bg-[#F6F6F6] transition-colors cursor-pointer"
           >
-            <b className="w-[22px] h-[22px] grid place-items-center font-heading font-bold text-lg bg-clip-text text-transparent bg-[conic-gradient(#ea4335_0_25%,#fbbc05_0_50%,#34a853_0_75%,#4285f4_0)] not-italic">
-              G
-            </b>
+            <b className="w-[22px] h-[22px] grid place-items-center font-heading font-bold text-lg bg-clip-text text-transparent bg-[conic-gradient(#ea4335_0_25%,#fbbc05_0_50%,#34a853_0_75%,#4285f4_0)] not-italic">G</b>
             <span>Sign in with Google</span>
           </button>
-
           <button
             type="button"
             onClick={() => handleSocialClick('Apple')}
             className="flex items-center justify-center gap-3 w-full border border-[#d6d6d6] bg-white rounded-full p-[15px] font-semibold text-base hover:bg-[#F6F6F6] transition-colors cursor-pointer"
           >
-            <b className="w-[22px] h-[22px] grid place-items-center text-xs text-white bg-[#1A1A1A] rounded-full not-italic">
-              A
-            </b>
+            <b className="w-[22px] h-[22px] grid place-items-center text-xs text-white bg-[#1A1A1A] rounded-full not-italic">A</b>
             <span>Continue with Apple</span>
           </button>
         </div>
@@ -137,13 +151,13 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* Divider (.or) */}
         <div className="flex items-center gap-4 my-5 text-[#1A1A1A] text-sm font-medium before:flex-1 before:h-[1px] before:bg-[#EBEBEB] after:flex-1 after:h-[1px] after:bg-[#EBEBEB]">
           or
         </div>
 
-        {/* Email Form */}
-        <form onSubmit={handleSubmit} className="space-y-2">
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-3">
+          {/* Email */}
           <label className={`block text-left border rounded-[14px] p-[8px_18px_10px] bg-white transition-all ${
             errorMsg ? 'border-[#B3261E]' : 'border-[#cfcfcf] focus-within:border-[#1A1A1A] focus-within:ring-1 focus-within:ring-[#1A1A1A]'
           }`}>
@@ -151,10 +165,7 @@ export default function LoginPage() {
             <input
               type="email"
               value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                setErrorMsg('');
-              }}
+              onChange={(e) => { setEmail(e.target.value); setErrorMsg(''); }}
               autoComplete="email"
               inputMode="email"
               placeholder="name@example.com"
@@ -162,16 +173,38 @@ export default function LoginPage() {
             />
           </label>
 
-          <div className="text-[#B3261E] text-sm text-left min-h-[22px] my-1 font-medium" role="alert">
+          {/* Password */}
+          <label className="block text-left border border-[#cfcfcf] rounded-[14px] p-[8px_18px_10px] bg-white transition-all focus-within:border-[#1A1A1A] focus-within:ring-1 focus-within:ring-[#1A1A1A]">
+            <span className="block text-xs text-[#6E6E6E] mb-0.5">Password</span>
+            <div className="flex items-center gap-2">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => { setPassword(e.target.value); setErrorMsg(''); }}
+                autoComplete="current-password"
+                placeholder="Enter your password"
+                className="flex-1 border-0 outline-none text-[17px] bg-transparent text-[#1A1A1A]"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="text-[#6E6E6E] hover:text-[#1A1A1A] text-xs font-medium transition-colors"
+              >
+                {showPassword ? 'Hide' : 'Show'}
+              </button>
+            </div>
+          </label>
+
+          <div className="text-[#B3261E] text-sm text-left min-h-[20px] font-medium" role="alert">
             {errorMsg}
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-[#1A1A1A] hover:bg-black text-white font-semibold text-base py-4 rounded-full transition-all cursor-pointer"
+            className="w-full bg-[#1A1A1A] hover:bg-black text-white font-semibold text-base py-4 rounded-full transition-all cursor-pointer disabled:opacity-60"
           >
-            {loading ? 'Continuing...' : 'Continue'}
+            {loading ? 'Signing in...' : 'Sign in'}
           </button>
         </form>
 
