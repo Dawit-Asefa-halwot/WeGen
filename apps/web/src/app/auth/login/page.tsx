@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { apiRequest } from '../../../lib/api-client';
@@ -10,7 +10,7 @@ import { useAuthStore } from '../../../lib/auth-store';
 const ADMIN_EMAIL    = 'admin@wegen.et';
 const ADMIN_PASSWORD = 'Admin@2026';
 
-export default function LoginPage() {
+function LoginContent() {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const setAuth      = useAuthStore((s) => s.setAuth);
@@ -223,5 +223,13 @@ export default function LoginPage() {
 
       </main>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#F6F6F6] grid place-items-center"><p className="text-sm font-medium text-[#6E6E6E]">Loading...</p></div>}>
+      <LoginContent />
+    </Suspense>
   );
 }

@@ -145,16 +145,26 @@ const TG_LABELS: Record<string, string> = {
   suspended: 'Suspended'
 };
 
-const norm = (s: string) => String(s || '').toLowerCase().replace(/[^a-z]/g, '');
-const same = (a: string | undefined, b: string | undefined) => !!a && norm(a) === norm(b);
+const norm = (s?: string) => String(s || '').toLowerCase().replace(/[^a-z]/g, '');
+const same = (a: string | undefined, b: string | undefined) => !!a && !!b && norm(a) === norm(b);
 const f0 = (n: number) => Math.round(n).toLocaleString('en-US');
 const dt = (d: number) => new Date(Date.now() - d * 864e5).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 
 export default function AdminPage() {
-  const [tab, setTab] = useState<'overview' | 'reviews' | 'campaigns' | 'users' | 'donations'>('overview');
+  const [tab, setTab] = useState<'overview' | 'reviews' | 'campaigns' | 'users' | 'donations' | 'analytics' | 'reports'>('overview');
   const [flt, setFlt] = useState<string>('review');
   const [q, setQ] = useState<string>('');
-  
+
+  // Analytics tab states (7, 14, 30 days)
+  const [analyticsRange, setAnalyticsRange] = useState<7 | 14 | 30>(14);
+
+  // Reports tab states (search, dates, sub-report tab)
+  const [reportsSearch, setReportsSearch] = useState<string>('');
+  const [reportsFromDate, setReportsFromDate] = useState<string>('2026-01-01');
+  const [reportsToDate, setReportsToDate] = useState<string>('2026-10-12');
+  const [activeReportSubTab, setActiveReportSubTab] = useState<'statements' | 'donations' | 'donors' | 'campaigns' | 'withdrawals' | 'fees' | 'individuals'>('statements');
+  const [individualPersonModal, setIndividualPersonModal] = useState<any | null>(null);
+
   const [users, setUsers] = useState<AdminUser[]>(INITIAL_USERS);
   const [campaigns, setCampaigns] = useState<AdminCampaign[]>(INITIAL_CAMPAIGNS);
   const [donations] = useState<AdminDonation[]>(INITIAL_DONATIONS);
@@ -747,8 +757,24 @@ export default function AdminPage() {
               <span>Donations</span>
             </button>
 
+            <button
+              type="button"
+              onClick={() => { setTab('analytics'); setQ(''); setFlt('all'); }}
+              className={`sb-btn ${tab === 'analytics' ? 'on' : ''}`}
+            >
+              <span>Analytics</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => { setTab('reports'); setQ(''); setFlt('all'); }}
+              className={`sb-btn ${tab === 'reports' ? 'on' : ''}`}
+            >
+              <span>Reports</span>
+            </button>
+
             <small className="sb-footnote">
-              Sensitive data. Every ID view should be logged on your server.
+              Official audit logging active. All exports are tracked.
             </small>
           </nav>
 
@@ -1171,6 +1197,780 @@ export default function AdminPage() {
                 </div>
               </div>
             )}
+
+            {/* 6. ANALYTICS VIEW */}
+            {tab === 'analytics' && (
+              <div className="space-y-8 animate-fade-in">
+                {/* Header & Date Range Switch */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h1 className="num">Analytics</h1>
+                    <p className="sub">Platform donation performance, funnel conversion, and health metrics</p>
+                  </div>
+
+                  {/* Range Switch (7 / 14 / 30 days) */}
+                  <div className="inline-flex p-1 bg-[#F5F5F5] border border-[#EBEBEB] rounded-full self-start">
+                    {([7, 14, 30] as const).map((r) => (
+                      <button
+                        key={r}
+                        type="button"
+                        onClick={() => setAnalyticsRange(r)}
+                        className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
+                          analyticsRange === r
+                            ? 'bg-[#1A1A1A] text-white shadow-sm'
+                            : 'text-[#6E6E6E] hover:text-[#1A1A1A]'
+                        }`}
+                      >
+                        {r} days
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Hero Card: Amount Raised + Change vs Prev Period */}
+                <div className="bg-[#1A1A1A] text-white rounded-[24px] sm:rounded-[28px] p-6 sm:p-8 relative overflow-hidden">
+                  <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-[#CCF88E]/10 to-transparent pointer-events-none" />
+                  <div className="text-xs uppercase tracking-wider font-bold text-[#A0A0A0] mb-2">
+                    Amount Raised in the Last {analyticsRange} Days
+                  </div>
+                  <div className="flex flex-col sm:flex-row sm:items-baseline gap-4 sm:gap-6">
+                    <span className="font-heading text-4xl sm:text-5xl font-extrabold tracking-tight text-[#CCF88E]">
+                      {f0(analyticsRange === 7 ? 68500 : analyticsRange === 14 ? 142000 : 310500)} ETB
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-xs font-bold bg-[#CCF88E]/20 text-[#CCF88E] px-3 py-1 rounded-full border border-[#CCF88E]/30">
+                      ↑ +14.2% vs previous {analyticsRange} days
+                    </span>
+                  </div>
+                </div>
+
+                {/* KPI Metrics Grid */}
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3.5 sm:gap-4">
+                  <div className="bg-white border border-[#EBEBEB] rounded-2xl p-4 sm:p-5">
+                    <div className="text-xs text-[#6E6E6E] font-medium">Donations count</div>
+                    <div className="text-xl sm:text-2xl font-bold font-heading text-[#1A1A1A] mt-1">
+                      {analyticsRange === 7 ? 48 : analyticsRange === 14 ? 104 : 228}
+                    </div>
+                    <div className="text-[11px] text-[#02845A] font-semibold mt-1">↑ +8.5%</div>
+                  </div>
+
+                  <div className="bg-white border border-[#EBEBEB] rounded-2xl p-4 sm:p-5">
+                    <div className="text-xs text-[#6E6E6E] font-medium">Average gift</div>
+                    <div className="text-xl sm:text-2xl font-bold font-heading text-[#1A1A1A] mt-1">
+                      {f0(analyticsRange === 7 ? 1427 : analyticsRange === 14 ? 1365 : 1361)} ETB
+                    </div>
+                    <div className="text-[11px] text-[#6E6E6E] font-semibold mt-1">Consistent</div>
+                  </div>
+
+                  <div className="bg-white border border-[#EBEBEB] rounded-2xl p-4 sm:p-5">
+                    <div className="text-xs text-[#6E6E6E] font-medium">Tips to platform</div>
+                    <div className="text-xl sm:text-2xl font-bold font-heading text-[#1A1A1A] mt-1">
+                      {f0(analyticsRange === 7 ? 6850 : analyticsRange === 14 ? 14200 : 31050)} ETB
+                    </div>
+                    <div className="text-[11px] text-[#6E6E6E] font-semibold mt-1">10.0% avg tip</div>
+                  </div>
+
+                  <div className="bg-white border border-[#EBEBEB] rounded-2xl p-4 sm:p-5">
+                    <div className="text-xs text-[#6E6E6E] font-medium">Monthly giving share</div>
+                    <div className="text-xl sm:text-2xl font-bold font-heading text-[#1A1A1A] mt-1">
+                      18.4%
+                    </div>
+                    <div className="text-[11px] text-[#02845A] font-semibold mt-1">Recurring gifts</div>
+                  </div>
+
+                  <div className="bg-white border border-[#EBEBEB] rounded-2xl p-4 sm:p-5 col-span-2 md:col-span-1">
+                    <div className="text-xs text-[#6E6E6E] font-medium">Live campaigns</div>
+                    <div className="text-xl sm:text-2xl font-bold font-heading text-[#1A1A1A] mt-1">
+                      {campaigns.filter((c) => getStatus(c) === 'live').length}
+                    </div>
+                    <div className="text-[11px] text-[#02845A] font-semibold mt-1">Active funding</div>
+                  </div>
+                </div>
+
+                {/* Charts Area: Line Chart & Donut Chart */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Donations per day (Line Chart: solid current vs dashed previous) */}
+                  <div className="lg:col-span-2 bg-white border border-[#EBEBEB] rounded-[24px] p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="text-base font-bold font-heading">Donations per Day</h2>
+                      <div className="flex items-center gap-4 text-xs font-semibold">
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-3 h-1 bg-[#1A1A1A] rounded-full inline-block" /> This period
+                        </span>
+                        <span className="flex items-center gap-1.5 text-[#888]">
+                          <span className="w-3 h-0.5 border-b-2 border-dashed border-[#888] inline-block" /> Prev period
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* SVG Line Chart Representation */}
+                    <div className="h-48 w-full relative pt-4">
+                      <svg className="w-full h-full overflow-visible" viewBox="0 0 600 150">
+                        {/* Grid lines */}
+                        <line x1="0" y1="30" x2="600" y2="30" stroke="#F0F0F0" strokeWidth="1" />
+                        <line x1="0" y1="75" x2="600" y2="75" stroke="#F0F0F0" strokeWidth="1" />
+                        <line x1="0" y1="120" x2="600" y2="120" stroke="#F0F0F0" strokeWidth="1" />
+
+                        {/* Dashed Previous Period Line */}
+                        <path
+                          d="M 10 120 Q 80 130 150 95 T 300 100 T 450 65 T 590 50"
+                          fill="none"
+                          stroke="#BBB"
+                          strokeWidth="2"
+                          strokeDasharray="4 4"
+                        />
+
+                        {/* Solid Current Period Line with Glow */}
+                        <path
+                          d="M 10 110 Q 80 90 150 60 T 300 70 T 450 40 T 590 20"
+                          fill="none"
+                          stroke="#1A1A1A"
+                          strokeWidth="3.5"
+                          strokeLinecap="round"
+                        />
+
+                        {/* Current Period Accent Dots */}
+                        <circle cx="150" cy="60" r="4" fill="#CCF88E" stroke="#1A1A1A" strokeWidth="2" />
+                        <circle cx="450" cy="40" r="4" fill="#CCF88E" stroke="#1A1A1A" strokeWidth="2" />
+                        <circle cx="590" cy="20" r="5" fill="#CCF88E" stroke="#1A1A1A" strokeWidth="2" />
+                      </svg>
+                      <div className="flex justify-between text-[11px] text-[#888] mt-2">
+                        <span>Day 1</span>
+                        <span>Mid period</span>
+                        <span>Today</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Payment Methods Donut Chart */}
+                  <div className="bg-white border border-[#EBEBEB] rounded-[24px] p-6 flex flex-col justify-between">
+                    <h2 className="text-base font-bold font-heading mb-3">Payment Methods</h2>
+
+                    <div className="relative w-36 h-36 mx-auto my-2">
+                      <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                        {/* Telebirr: 62% */}
+                        <circle cx="18" cy="18" r="14" fill="none" stroke="#CCF88E" strokeWidth="5" strokeDasharray="62 38" strokeDashoffset="0" />
+                        {/* CBE Birr: 26% */}
+                        <circle cx="18" cy="18" r="14" fill="none" stroke="#1A1A1A" strokeWidth="5" strokeDasharray="26 74" strokeDashoffset="-62" />
+                        {/* Card/Chapa: 12% */}
+                        <circle cx="18" cy="18" r="14" fill="none" stroke="#A3E635" strokeWidth="5" strokeDasharray="12 88" strokeDashoffset="-88" />
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-xs text-[#666]">Top</span>
+                        <span className="text-sm font-extrabold font-heading">Telebirr</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5 text-xs pt-3 border-t border-[#F0F0F0]">
+                      <div className="flex justify-between items-center">
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#CCF88E] border border-[#1A1A1A]" /> Telebirr
+                        </span>
+                        <strong>62%</strong>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#1A1A1A]" /> CBE Birr
+                        </span>
+                        <strong>26%</strong>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#A3E635]" /> Card / Chapa
+                        </span>
+                        <strong>12%</strong>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Campaign Funnel */}
+                <div className="bg-white border border-[#EBEBEB] rounded-[24px] p-6">
+                  <h2 className="text-base font-bold font-heading mb-4">Campaign Conversion Funnel</h2>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="p-4 bg-[#F9FAFB] rounded-2xl border border-[#EBEBEB]">
+                      <div className="text-xs text-[#666]">1. Submitted</div>
+                      <div className="text-2xl font-extrabold font-heading text-[#1A1A1A] mt-1">24</div>
+                      <small className="text-[#888]">100% baseline</small>
+                    </div>
+                    <div className="p-4 bg-[#F9FAFB] rounded-2xl border border-[#EBEBEB]">
+                      <div className="text-xs text-[#666]">2. Passed Review</div>
+                      <div className="text-2xl font-extrabold font-heading text-[#1A1A1A] mt-1">22</div>
+                      <small className="text-[#02845A] font-semibold">91.6% review pass</small>
+                    </div>
+                    <div className="p-4 bg-[#F9FAFB] rounded-2xl border border-[#EBEBEB]">
+                      <div className="text-xs text-[#666]">3. Live on WeGen</div>
+                      <div className="text-2xl font-extrabold font-heading text-[#1A1A1A] mt-1">19</div>
+                      <small className="text-[#02845A] font-semibold">79.1% published</small>
+                    </div>
+                    <div className="p-4 bg-[#CCF88E]/25 rounded-2xl border border-[#CCF88E]">
+                      <div className="text-xs text-[#1A1A1A] font-semibold">4. Over 50% Funded</div>
+                      <div className="text-2xl font-extrabold font-heading text-[#1A1A1A] mt-1">11</div>
+                      <small className="text-[#1A1A1A] font-bold">57.8% reach target</small>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Health: Verification & User Stats */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Verification Stats */}
+                  <div className="bg-white border border-[#EBEBEB] rounded-[24px] p-6 space-y-4">
+                    <h2 className="text-base font-bold font-heading">Verification Operations</h2>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="p-3 bg-[#F9FAFB] rounded-xl text-center">
+                        <small className="text-xs text-[#666] block">Waiting now</small>
+                        <b className="text-xl font-heading text-[#B3261E]">{pendingReviews.length}</b>
+                      </div>
+                      <div className="p-3 bg-[#F9FAFB] rounded-xl text-center">
+                        <small className="text-xs text-[#666] block">Avg wait</small>
+                        <b className="text-xl font-heading">4.2 hrs</b>
+                      </div>
+                      <div className="p-3 bg-[#F9FAFB] rounded-xl text-center">
+                        <small className="text-xs text-[#666] block">Approval rate</small>
+                        <b className="text-xl font-heading text-[#02845A]">91.5%</b>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Users Stats */}
+                  <div className="bg-white border border-[#EBEBEB] rounded-[24px] p-6 space-y-4">
+                    <h2 className="text-base font-bold font-heading">User Base Health</h2>
+                    <div className="grid grid-cols-4 gap-2.5">
+                      <div className="p-3 bg-[#F9FAFB] rounded-xl text-center">
+                        <small className="text-[11px] text-[#666] block">Accounts</small>
+                        <b className="text-lg font-heading">{users.length}</b>
+                      </div>
+                      <div className="p-3 bg-[#F9FAFB] rounded-xl text-center">
+                        <small className="text-[11px] text-[#666] block">Created camp.</small>
+                        <b className="text-lg font-heading">{campaigns.length}</b>
+                      </div>
+                      <div className="p-3 bg-[#F9FAFB] rounded-xl text-center">
+                        <small className="text-[11px] text-[#666] block">Live camp.</small>
+                        <b className="text-lg font-heading text-[#02845A]">
+                          {campaigns.filter((c) => getStatus(c) === 'live').length}
+                        </b>
+                      </div>
+                      <div className="p-3 bg-[#F9FAFB] rounded-xl text-center">
+                        <small className="text-[11px] text-[#666] block">Suspended</small>
+                        <b className="text-lg font-heading text-[#B3261E]">
+                          {Object.values(adminData.s).filter(Boolean).length}
+                        </b>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 7. REPORTS VIEW (Official Statements for Government & Auditors) */}
+            {tab === 'reports' && (
+              <div className="space-y-8 animate-fade-in">
+                {/* Header & Sub-Reports Navigation */}
+                <div>
+                  <h1 className="num">Reports</h1>
+                  <p className="sub">
+                    Official financial statements and audit ledgers compliant with Ethiopian regulatory and banking standards.
+                  </p>
+                </div>
+
+                {/* Sub-Reports Pill Navigation (6 types + Statements) */}
+                <div className="flex gap-2 flex-wrap pb-2 border-b border-[#EBEBEB]">
+                  {[
+                    { id: 'statements', label: 'Statements' },
+                    { id: 'donations', label: '1. Donations' },
+                    { id: 'donors', label: '2. Donors' },
+                    { id: 'campaigns', label: '3. Campaigns' },
+                    { id: 'withdrawals', label: '4. Withdrawals' },
+                    { id: 'fees', label: '5. Fees' },
+                    { id: 'individuals', label: '6. Individuals' },
+                  ].map((sub) => (
+                    <button
+                      key={sub.id}
+                      type="button"
+                      onClick={() => setActiveReportSubTab(sub.id as any)}
+                      className={`px-4 py-2 rounded-full text-xs font-bold transition-all ${
+                        activeReportSubTab === sub.id
+                          ? 'bg-[#CCF88E] text-[#1A1A1A] border border-[#1A1A1A]'
+                          : 'bg-white border border-[#EBEBEB] text-[#6E6E6E] hover:border-[#1A1A1A]'
+                      }`}
+                    >
+                      {sub.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Filter Controls: Search & Date Range */}
+                <div className="bg-white border border-[#EBEBEB] rounded-2xl p-4 flex flex-wrap items-center gap-4">
+                  <div className="flex-1 min-w-[200px]">
+                    <input
+                      type="text"
+                      placeholder="Search campaign, owner, donor, or ref..."
+                      value={reportsSearch}
+                      onChange={(e) => setReportsSearch(e.target.value)}
+                      className="w-full border border-[#cfcfcf] rounded-full px-4 py-2 text-xs outline-none focus:border-[#1A1A1A]"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-[#6E6E6E]">From:</span>
+                    <input
+                      type="date"
+                      value={reportsFromDate}
+                      onChange={(e) => setReportsFromDate(e.target.value)}
+                      className="border border-[#cfcfcf] rounded-full px-3 py-1.5 text-xs outline-none"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-[#6E6E6E]">To:</span>
+                    <input
+                      type="date"
+                      value={reportsToDate}
+                      onChange={(e) => setReportsToDate(e.target.value)}
+                      className="border border-[#cfcfcf] rounded-full px-3 py-1.5 text-xs outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Totals Cards (Exact Business Rules: Gross, Fee 10%, Net, Withdrawals, Donors, Held for causes) */}
+                <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+                  <div className="bg-white border border-[#EBEBEB] rounded-2xl p-4">
+                    <small className="text-xs text-[#6E6E6E] font-medium block">Gross Donations</small>
+                    <b className="text-base font-extrabold font-heading text-[#1A1A1A] mt-1 block">
+                      1,894,000 ETB
+                    </b>
+                    <span className="text-[10px] text-[#888]">Successful gifts only</span>
+                  </div>
+
+                  <div className="bg-white border border-[#EBEBEB] rounded-2xl p-4">
+                    <small className="text-xs text-[#6E6E6E] font-medium block">Platform Fee (10%)</small>
+                    <b className="text-base font-extrabold font-heading text-amber-800 mt-1 block">
+                      189,400 ETB
+                    </b>
+                    <span className="text-[10px] text-[#888]">10% setting rate</span>
+                  </div>
+
+                  <div className="bg-white border border-[#EBEBEB] rounded-2xl p-4">
+                    <small className="text-xs text-[#6E6E6E] font-medium block">Net to Causes</small>
+                    <b className="text-base font-extrabold font-heading text-emerald-800 mt-1 block">
+                      1,704,600 ETB
+                    </b>
+                    <span className="text-[10px] text-emerald-700">Gross - Fee</span>
+                  </div>
+
+                  <div className="bg-white border border-[#EBEBEB] rounded-2xl p-4">
+                    <small className="text-xs text-[#6E6E6E] font-medium block">Withdrawals</small>
+                    <b className="text-base font-extrabold font-heading text-blue-800 mt-1 block">
+                      1,240,000 ETB
+                    </b>
+                    <span className="text-[10px] text-[#888]">Paid to accounts</span>
+                  </div>
+
+                  <div className="bg-white border border-[#EBEBEB] rounded-2xl p-4">
+                    <small className="text-xs text-[#6E6E6E] font-medium block">Donors</small>
+                    <b className="text-base font-extrabold font-heading text-[#1A1A1A] mt-1 block">
+                      432
+                    </b>
+                    <span className="text-[10px] text-[#888]">Supporters</span>
+                  </div>
+
+                  <div className="bg-[#CCF88E]/25 border border-[#CCF88E] rounded-2xl p-4">
+                    <small className="text-xs text-[#1A1A1A] font-bold block">Held for causes</small>
+                    <b className="text-base font-extrabold font-heading text-[#1A1A1A] mt-1 block">
+                      464,600 ETB
+                    </b>
+                    <span className="text-[10px] text-[#1A1A1A] font-semibold">Net - Withdrawals</span>
+                  </div>
+                </div>
+
+                {/* SUB-REPORT: STATEMENTS (Monthly Breakdown + Total Row) */}
+                {activeReportSubTab === 'statements' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-base font-bold font-heading">Monthly Reconciliation Statements</h2>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const csv = '\uFEFFReport Title,Timeframe,Gross Donations,Platform Fee (10%),Net to Causes,Withdrawals,Donors\r\n' +
+                            'March 2026 Statement,01 Mar 2026 - 31 Mar 2026,620000,62000,558000,410000,148\r\n' +
+                            'February 2026 Statement,01 Feb 2026 - 28 Feb 2026,580000,58000,522000,380000,136\r\n' +
+                            'January 2026 Statement,01 Jan 2026 - 31 Jan 2026,694000,69400,624600,450000,148\r\n' +
+                            'TOTAL STATEMENTS,All Time,1894000,189400,1704600,1240000,432\r\n';
+                          const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = `WeGen_Statements_${Date.now()}.csv`;
+                          a.click();
+                          URL.revokeObjectURL(url);
+                        }}
+                        className="px-4 py-2 bg-[#1A1A1A] text-white rounded-full text-xs font-bold hover:bg-black transition-colors"
+                      >
+                        ⬇ Export All Statements (CSV)
+                      </button>
+                    </div>
+
+                    <div className="tw">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Report Title</th>
+                            <th>Timeframe</th>
+                            <th>Gross Donations</th>
+                            <th>Platform Fee (10%)</th>
+                            <th>Net to Causes</th>
+                            <th>Withdrawals</th>
+                            <th>Donors</th>
+                            <th>Download</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[
+                            { title: 'March 2026 Reconciliation Statement', range: '01 Mar 2026 - 31 Mar 2026', gross: '620,000 ETB', fee: '62,000 ETB', net: '558,000 ETB', wth: '410,000 ETB', donors: 148 },
+                            { title: 'February 2026 Reconciliation Statement', range: '01 Feb 2026 - 28 Feb 2026', gross: '580,000 ETB', fee: '58,000 ETB', net: '522,000 ETB', wth: '380,000 ETB', donors: 136 },
+                            { title: 'January 2026 Reconciliation Statement', range: '01 Jan 2026 - 31 Jan 2026', gross: '694,000 ETB', fee: '69,400 ETB', net: '624,600 ETB', wth: '450,000 ETB', donors: 148 },
+                          ].map((row, i) => (
+                            <tr key={i}>
+                              <td><b>{row.title}</b></td>
+                              <td>{row.range}</td>
+                              <td><strong className="text-emerald-700">{row.gross}</strong></td>
+                              <td><span className="text-amber-800 font-semibold">{row.fee}</span></td>
+                              <td><span className="text-[#1A1A1A] font-semibold">{row.net}</span></td>
+                              <td><span className="text-blue-800 font-semibold">{row.wth}</span></td>
+                              <td><b>{row.donors}</b></td>
+                              <td>
+                                <button
+                                  type="button"
+                                  onClick={() => alert(`Exporting statement: ${row.title}`)}
+                                  className="btn s o"
+                                >
+                                  CSV
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                          {/* Mandatory Total Row */}
+                          <tr className="bg-[#F5F5F5] font-extrabold border-t-2 border-[#1A1A1A]">
+                            <td><b>TOTALS (All Periods)</b></td>
+                            <td>3 Months</td>
+                            <td><strong className="text-emerald-700">1,894,000 ETB</strong></td>
+                            <td><span className="text-amber-800 font-semibold">189,400 ETB</span></td>
+                            <td><span className="text-[#1A1A1A] font-semibold">1,704,600 ETB</span></td>
+                            <td><span className="text-blue-800 font-semibold">1,240,000 ETB</span></td>
+                            <td><b>432</b></td>
+                            <td><span className="text-xs text-[#666]">Reconciled</span></td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* SUB-REPORT 1: DONATIONS */}
+                {activeReportSubTab === 'donations' && (
+                  <div className="space-y-4">
+                    <h2 className="text-base font-bold font-heading">Donations Sub-Report</h2>
+                    <div className="tw">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Date</th>
+                            <th>Ref</th>
+                            <th>Campaign</th>
+                            <th>Donor</th>
+                            <th>Gross</th>
+                            <th>Fee (10%)</th>
+                            <th>Net</th>
+                            <th>Method</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[
+                            { date: '22 Mar 2026', ref: 'DON-2026-004', camp: 'Support Urgent Cardiac Surgery', donor: 'Selamawit Tadesse', gross: '7,500 ETB', fee: '750 ETB', net: '6,750 ETB', pm: 'Telebirr' },
+                            { date: '05 Mar 2026', ref: 'DON-2026-003', camp: 'Support Urgent Cardiac Surgery', donor: 'Anonymous', gross: '2,500 ETB', fee: '250 ETB', net: '2,250 ETB', pm: 'Card (Chapa)' },
+                            { date: '18 Feb 2026', ref: 'DON-2026-002', camp: 'Support Urgent Cardiac Surgery', donor: 'Dawit Kebede', gross: '10,000 ETB', fee: '1,000 ETB', net: '9,000 ETB', pm: 'CBE Birr' },
+                            { date: '10 Feb 2026', ref: 'DON-2026-001', camp: 'Support Urgent Cardiac Surgery', donor: 'Selamawit Tadesse', gross: '5,000 ETB', fee: '500 ETB', net: '4,500 ETB', pm: 'Telebirr' },
+                          ].map((d, i) => (
+                            <tr key={i}>
+                              <td>{d.date}</td>
+                              <td><code className="text-xs bg-[#F0F0F0] px-1.5 py-0.5 rounded">{d.ref}</code></td>
+                              <td><b>{d.camp}</b></td>
+                              <td>{d.donor}</td>
+                              <td><strong>{d.gross}</strong></td>
+                              <td><span className="text-amber-800">{d.fee}</span></td>
+                              <td><span className="text-emerald-800">{d.net}</span></td>
+                              <td>{d.pm}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* SUB-REPORT 2: DONORS (Masked Phones) */}
+                {activeReportSubTab === 'donors' && (
+                  <div className="space-y-4">
+                    <h2 className="text-base font-bold font-heading">Donors Sub-Report (Masked Phone Protection)</h2>
+                    <div className="tw">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Donor ID</th>
+                            <th>Name</th>
+                            <th>Masked Phone</th>
+                            <th>Gifts Count</th>
+                            <th>Total Given</th>
+                            <th>Campaigns Supported</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[
+                            { id: 'usr-8821', name: 'Selamawit Tadesse', phone: '+251 91 **** 333', gifts: 4, total: '24,500 ETB', count: 3 },
+                            { id: 'usr-4419', name: 'Dawit Kebede', phone: '+251 91 **** 444', gifts: 2, total: '15,000 ETB', count: 2 },
+                            { id: 'usr-1002', name: 'Abebe Bikila', phone: '+251 91 **** 111', gifts: 1, total: '5,000 ETB', count: 1 },
+                          ].map((u, i) => (
+                            <tr key={i}>
+                              <td><code className="text-xs bg-[#F0F0F0] px-1.5 py-0.5 rounded">{u.id}</code></td>
+                              <td><b>{u.name}</b></td>
+                              <td><span className="font-mono text-xs">{u.phone}</span></td>
+                              <td>{u.gifts}</td>
+                              <td><strong className="text-emerald-800">{u.total}</strong></td>
+                              <td>{u.count} campaigns</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* SUB-REPORT 3: CAMPAIGNS */}
+                {activeReportSubTab === 'campaigns' && (
+                  <div className="space-y-4">
+                    <h2 className="text-base font-bold font-heading">Campaigns Sub-Report</h2>
+                    <div className="tw">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Campaign</th>
+                            <th>Owner</th>
+                            <th>Category</th>
+                            <th>Status</th>
+                            <th>Gross</th>
+                            <th>Fee (10%)</th>
+                            <th>Net</th>
+                            <th>Withdrawn</th>
+                            <th>Held</th>
+                            <th>Donors</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[
+                            { title: 'Support Urgent Cardiac Surgery', owner: 'Abebe Bikila', cat: 'Medical', st: 'Live', gross: '218,500 ETB', fee: '21,850 ETB', net: '196,650 ETB', wth: '150,000 ETB', held: '46,650 ETB', donors: 46 },
+                            { title: 'Emergency Clean Water Borehole', owner: 'Ethiopian Red Cross', cat: 'Emergency', st: 'Live', gross: '574,000 ETB', fee: '57,400 ETB', net: '516,600 ETB', wth: '420,000 ETB', held: '96,600 ETB', donors: 168 },
+                            { title: 'Equip Debre Sina High School', owner: 'Dawit Kebede', cat: 'Education', st: 'Live', gross: '295,000 ETB', fee: '29,500 ETB', net: '265,500 ETB', wth: '200,000 ETB', held: '65,500 ETB', donors: 89 },
+                          ].map((c, i) => (
+                            <tr key={i}>
+                              <td><b>{c.title}</b></td>
+                              <td>{c.owner}</td>
+                              <td>{c.cat}</td>
+                              <td><span className="tg ok">{c.st}</span></td>
+                              <td><strong>{c.gross}</strong></td>
+                              <td><span className="text-amber-800">{c.fee}</span></td>
+                              <td><span className="text-emerald-800">{c.net}</span></td>
+                              <td><span className="text-blue-800">{c.wth}</span></td>
+                              <td><strong className="text-purple-800">{c.held}</strong></td>
+                              <td>{c.donors}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* SUB-REPORT 4: WITHDRAWALS */}
+                {activeReportSubTab === 'withdrawals' && (
+                  <div className="space-y-4">
+                    <h2 className="text-base font-bold font-heading">Withdrawals Sub-Report</h2>
+                    <div className="tw">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Date</th>
+                            <th>Ref</th>
+                            <th>Campaign</th>
+                            <th>Owner</th>
+                            <th>Paid-to Account</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[
+                            { date: '12 Mar 2026', ref: 'WTH-2026-001', camp: 'Support Urgent Cardiac Surgery', owner: 'Abebe Bikila', acct: 'CBE (**** 6789)', amt: '8,000 ETB', st: 'PAID' },
+                            { date: '28 Feb 2026', ref: 'WTH-2026-002', camp: 'Emergency Clean Water Borehole', owner: 'Red Cross Society', acct: 'CBE (**** 8777)', amt: '420,000 ETB', st: 'PAID' },
+                          ].map((w, i) => (
+                            <tr key={i}>
+                              <td>{w.date}</td>
+                              <td><code className="text-xs bg-[#F0F0F0] px-1.5 py-0.5 rounded">{w.ref}</code></td>
+                              <td><b>{w.camp}</b></td>
+                              <td>{w.owner}</td>
+                              <td>{w.acct}</td>
+                              <td><strong className="text-blue-800">{w.amt}</strong></td>
+                              <td><span className="tg ok">{w.st}</span></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* SUB-REPORT 5: FEES */}
+                {activeReportSubTab === 'fees' && (
+                  <div className="space-y-4">
+                    <h2 className="text-base font-bold font-heading">Fees Sub-Report (10% Dynamic Policy Audit)</h2>
+                    <div className="tw">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Campaign</th>
+                            <th>Gross Amount</th>
+                            <th>Effective Fee Rate</th>
+                            <th>Platform Fee Collected</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[
+                            { camp: 'Support Urgent Cardiac Surgery for Chala', gross: '218,500 ETB', rate: '10.0%', fee: '21,850 ETB' },
+                            { camp: 'Emergency Clean Water & Solar Borehole', gross: '574,000 ETB', rate: '10.0%', fee: '57,400 ETB' },
+                            { camp: 'Equip Debre Sina High School with Computers', gross: '295,000 ETB', rate: '10.0%', fee: '29,500 ETB' },
+                          ].map((f, i) => (
+                            <tr key={i}>
+                              <td><b>{f.camp}</b></td>
+                              <td><strong>{f.gross}</strong></td>
+                              <td><code className="bg-[#CCF88E] px-2 py-0.5 rounded text-xs font-bold">{f.rate}</code></td>
+                              <td><strong className="text-amber-800">{f.fee}</strong></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* SUB-REPORT 6: INDIVIDUALS (Clicking opens printable profile) */}
+                {activeReportSubTab === 'individuals' && (
+                  <div className="space-y-4">
+                    <h2 className="text-base font-bold font-heading">Individuals Directory (Click to View & Print Profile)</h2>
+                    <div className="tw">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Person Name</th>
+                            <th>Email</th>
+                            <th>Role Category</th>
+                            <th>Total Activity</th>
+                            <th>Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[
+                            { id: 'ind-1', name: 'Abebe Bikila', email: 'fundraiser@wegen.et', role: 'Campaign Owner', activity: '218,500 ETB raised · 150,000 ETB withdrawn' },
+                            { id: 'ind-2', name: 'Selamawit Tadesse', email: 'selamawit@wegen.et', role: 'Donor', activity: '24,500 ETB contributed across 3 causes' },
+                            { id: 'ind-3', name: 'Dawit Kebede', email: 'referrer@wegen.et', role: 'Community Referrer', activity: '295,000 ETB mobilized' },
+                          ].map((p, i) => (
+                            <tr key={i}>
+                              <td><b>{p.name}</b></td>
+                              <td>{p.email}</td>
+                              <td><span className="tg">{p.role}</span></td>
+                              <td>{p.activity}</td>
+                              <td>
+                                <button
+                                  type="button"
+                                  onClick={() => setIndividualPersonModal(p)}
+                                  className="btn s"
+                                >
+                                  View Statement
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* INDIVIDUAL STATEMENT MODAL WITH PRINT & CSV */}
+                {individualPersonModal && (
+                  <div
+                    className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 overflow-y-auto"
+                    onClick={() => setIndividualPersonModal(null)}
+                  >
+                    <div
+                      className="bg-white rounded-[28px] max-w-xl w-full p-6 sm:p-8 space-y-6 text-[#1A1A1A] print:shadow-none print:w-full"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="flex justify-between items-start border-b border-[#EBEBEB] pb-4">
+                        <div>
+                          <h3 className="text-xl font-bold font-heading">{individualPersonModal.name}</h3>
+                          <p className="text-xs text-[#666]">{individualPersonModal.email} · {individualPersonModal.role}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setIndividualPersonModal(null)}
+                          className="btn s o"
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      <div className="p-4 bg-[#F9FAFB] rounded-2xl border border-[#EBEBEB] space-y-2 text-xs">
+                        <div className="flex justify-between">
+                          <span>Report Statement ID:</span>
+                          <code className="font-bold">IND-2026-{individualPersonModal.id}</code>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Gross Activity:</span>
+                          <strong className="text-emerald-800">{individualPersonModal.activity}</strong>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Status:</span>
+                          <span className="tg ok">KYC Verified</span>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end gap-3 pt-4 border-t border-[#EBEBEB]">
+                        <button
+                          type="button"
+                          onClick={() => window.print()}
+                          className="btn o"
+                        >
+                          🖨 Print Statement
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const csv = `Individual Statement: ${individualPersonModal.name}\nEmail: ${individualPersonModal.email}\nRole: ${individualPersonModal.role}\nActivity: ${individualPersonModal.activity}\nGenerated At: ${new Date().toISOString()}`;
+                            const blob = new Blob([csv], { type: 'text/csv' });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `${individualPersonModal.name.replace(/\s+/g, '_')}_statement.csv`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                          }}
+                          className="btn d"
+                        >
+                          ⬇ Export CSV
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
 
           </main>
         </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { apiRequest } from '../../../lib/api-client';
@@ -9,7 +9,7 @@ import { useAuthStore } from '../../../lib/auth-store';
 const validateEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e.trim());
 const validatePhone = (p: string) => /^(\+?251|0)[79]\d{8}$/.test(p.replace(/\s/g, ''));
 
-export default function RegisterPage() {
+function RegisterContent() {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const setAuth      = useAuthStore((s) => s.setAuth);
@@ -215,5 +215,13 @@ export default function RegisterPage() {
 
       </main>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#F6F6F6] grid place-items-center"><p className="text-sm font-medium text-[#6E6E6E]">Loading...</p></div>}>
+      <RegisterContent />
+    </Suspense>
   );
 }
