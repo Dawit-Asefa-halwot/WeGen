@@ -16,6 +16,9 @@ const ADMIN_PASSWORD    = 'Admin@2026';
 const STAFF_EMAIL       = 'staff@wegen.et';
 const STAFF_PASSWORD    = 'Staff@2026';
 
+const DONOR_EMAIL       = 'donor@wegen.et';
+const DONOR_PW          = 'Donor@2026';
+
 function LoginContent() {
   const router       = useRouter();
   const searchParams = useSearchParams();
@@ -103,6 +106,29 @@ function LoginContent() {
       return;
     }
 
+    // ── Check Donor credentials ──
+    if (normEmail === DONOR_EMAIL && password === DONOR_PW) {
+      setAuth(
+        {
+          id: 'u-donor-1',
+          email: DONOR_EMAIL,
+          firstName: 'Selamawit',
+          lastName: 'Tadesse',
+          roles: ['DONOR', 'USER'],
+          isEmailVerified: true,
+        },
+        'donor-demo-token'
+      );
+      localStorage.setItem('ethiofund-user', JSON.stringify({ email: DONOR_EMAIL, role: 'DONOR' }));
+      localStorage.setItem(
+        'ethiofund-donor',
+        JSON.stringify({ name: 'Selamawit Tadesse' })
+      );
+      setLoading(false);
+      router.push('/dashboard/giving');
+      return;
+    }
+
     try {
       localStorage.setItem('ethiofund-user', JSON.stringify({ email: email.trim() }));
 
@@ -117,6 +143,10 @@ function LoginContent() {
         setAuth(res.data.user, res.data.tokens.accessToken);
         if (res.data.user.roles.includes('ADMIN')) {
           router.push('/admin');
+          return;
+        }
+        if (res.data.user.roles.includes('DONOR')) {
+          router.push('/dashboard/giving');
           return;
         }
       } else {
@@ -253,50 +283,6 @@ function LoginContent() {
             {loading ? 'Signing in...' : 'Sign in'}
           </button>
         </form>
-
-        {/* Demo Quick-Fill Credentials */}
-        <div className="mt-6 p-4 bg-[#F0F0F0] rounded-2xl text-left border border-[#E0E0E0]">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-[#6E6E6E] block mb-2">
-            Quick-Fill Credentials (Click to fill)
-          </span>
-          <div className="flex flex-col gap-2">
-            <button
-              type="button"
-              onClick={() => { setEmail(SUPER_ADMIN_EMAIL); setPassword(SUPER_ADMIN_PW); }}
-              className="text-left p-2 rounded-xl bg-white hover:bg-[#FAF9F5] border border-[#E5E5E5] transition-all"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-[#1A1A1A]">Super Admin (Owner)</span>
-                <span className="text-[10px] bg-[#1A1A1A] text-white px-2 py-0.5 rounded-full font-bold">/super</span>
-              </div>
-              <div className="text-[11px] text-[#6E6E6E] font-mono mt-0.5">superadmin@wegen.et · SuperAdmin@2026</div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => { setEmail(ADMIN_EMAIL); setPassword(ADMIN_PASSWORD); }}
-              className="text-left p-2 rounded-xl bg-white hover:bg-[#FAF9F5] border border-[#E5E5E5] transition-all"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-[#1A1A1A]">Admin</span>
-                <span className="text-[10px] bg-[#CCF88E] text-[#1A1A1A] px-2 py-0.5 rounded-full font-bold">/admin</span>
-              </div>
-              <div className="text-[11px] text-[#6E6E6E] font-mono mt-0.5">admin@wegen.et · Admin@2026</div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => { setEmail(STAFF_EMAIL); setPassword(STAFF_PASSWORD); }}
-              className="text-left p-2 rounded-xl bg-white hover:bg-[#FAF9F5] border border-[#E5E5E5] transition-all"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-[#1A1A1A]">Staff (Reviewer)</span>
-                <span className="text-[10px] bg-[#E0F2FE] text-[#0369A1] px-2 py-0.5 rounded-full font-bold">/staff</span>
-              </div>
-              <div className="text-[11px] text-[#6E6E6E] font-mono mt-0.5">staff@wegen.et · Staff@2026</div>
-            </button>
-          </div>
-        </div>
 
         <small className="block mt-5 text-[#6E6E6E] text-xs">
           By continuing, you agree to our{' '}

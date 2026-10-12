@@ -180,7 +180,7 @@ export const Navbar: React.FC = () => {
                   className="text-[14px] font-semibold text-[#1A1A1A] hover:text-[#6E6E6E] px-3 py-1.5 rounded-lg hover:bg-[#F5F5F5] transition-colors">
                   Sign in
                 </Link>
-                <Link href="/auth/register"
+                <Link href="/auth/register?next=/dashboard/giving"
                   className="btn-pill btn-lime btn-small">
                   Sign up
                 </Link>
@@ -253,7 +253,7 @@ export const Navbar: React.FC = () => {
                 </>
               ) : (
                 <>
-                  <Link href="/auth/register" onClick={() => setIsOpen(false)}
+                  <Link href="/auth/register?next=/dashboard/giving" onClick={() => setIsOpen(false)}
                     className="w-full text-center bg-[#CCF88E] text-[#1A1A1A] py-2.5 rounded-full font-semibold text-sm">
                     Sign up
                   </Link>

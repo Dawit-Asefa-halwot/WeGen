@@ -373,6 +373,12 @@ export default function EthioFundLandingPage() {
               Sign In
             </Link>
 
+            {/* Sign Up -> Donor Dashboard */}
+            <Link href="/auth/register?next=/dashboard/giving"
+              className="text-[14px] font-semibold text-[#1A1A1A] hover:text-[#6E6E6E] px-3 py-1.5 rounded-lg hover:bg-[#F5F5F5] transition-colors">
+              Sign Up
+            </Link>
+
             {/* Start a Campaign CTA */}
             <Link href="/dashboard/campaigns/new"
               className="btn-pill btn-lime btn-small ml-1">

@@ -14,7 +14,7 @@ function RegisterContent() {
   const searchParams = useSearchParams();
   const setAuth      = useAuthStore((s) => s.setAuth);
 
-  const nextUrl = searchParams.get('next') || '/dashboard';
+  const nextUrl = searchParams.get('next') || '/dashboard/giving';
 
   const [fullName,   setFullName]   = useState('');
   const [email,      setEmail]      = useState('');
@@ -41,6 +41,12 @@ function RegisterContent() {
     const firstName = parts[0] || 'User';
     const lastName  = parts.slice(1).join(' ') || 'Member';
 
+    // Store donor profile in localStorage so donor dashboard displays their name immediately
+    try {
+      localStorage.setItem('ethiofund-donor', JSON.stringify({ name: fullName.trim() }));
+      localStorage.setItem('ethiofund-user', JSON.stringify({ email: email.trim(), role: 'DONOR' }));
+    } catch {}
+
     try {
       const res = await apiRequest('/auth/register', {
         method: 'POST',
@@ -52,7 +58,7 @@ function RegisterContent() {
       } else {
         // Demo fallback
         setAuth(
-          { id: 'u1', email: email.trim(), firstName, lastName, roles: ['FUNDRAISER'], isEmailVerified: false },
+          { id: 'u1', email: email.trim(), firstName, lastName, roles: ['DONOR', 'USER'], isEmailVerified: false },
           'demo-token'
         );
       }
@@ -61,7 +67,7 @@ function RegisterContent() {
       // Demo fallback when API is offline
       const parts2 = fullName.trim().split(' ');
       setAuth(
-        { id: 'u1', email: email.trim(), firstName: parts2[0] || 'User', lastName: parts2.slice(1).join(' ') || 'Member', roles: ['FUNDRAISER'], isEmailVerified: false },
+        { id: 'u1', email: email.trim(), firstName: parts2[0] || 'User', lastName: parts2.slice(1).join(' ') || 'Member', roles: ['DONOR', 'USER'], isEmailVerified: false },
         'demo-token'
       );
       router.push(nextUrl);
