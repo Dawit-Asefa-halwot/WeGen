@@ -262,6 +262,16 @@ export default function UserDashboardPage() {
               </button>
             );
           })}
+
+          <Link
+            href="/dashboard/giving"
+            className="flex items-center gap-3.5 rounded-full p-1.5 pr-4 text-[17px] text-left transition-colors whitespace-nowrap hover:bg-[#F6F6F6] text-[#1A1A1A]"
+          >
+            <i className="w-11 h-11 rounded-full grid place-items-center not-italic shrink-0 bg-[#CCF88E]">
+              🌱
+            </i>
+            <span>My Giving</span>
+          </Link>
         </nav>
 
         {/* MAIN CONTENT AREA */}

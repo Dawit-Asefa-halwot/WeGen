@@ -164,6 +164,10 @@ export const Navbar: React.FC = () => {
                   className="text-[14px] font-semibold text-[#1A1A1A] hover:text-[#6E6E6E] px-3 py-1.5 rounded-lg hover:bg-[#F5F5F5] transition-colors">
                   Dashboard
                 </Link>
+                <Link href="/dashboard/giving"
+                  className="text-[14px] font-semibold text-[#1A1A1A] hover:text-[#6E6E6E] px-3 py-1.5 rounded-lg hover:bg-[#F5F5F5] transition-colors">
+                  My Giving
+                </Link>
                 <button onClick={logout}
                   className="w-[34px] h-[34px] rounded-full bg-[#1A1A1A] text-white grid place-items-center font-semibold text-[13px] border-0 cursor-pointer hover:bg-[#333] transition-colors"
                   title={`${user.firstName} ${user.lastName} — sign out`}>
