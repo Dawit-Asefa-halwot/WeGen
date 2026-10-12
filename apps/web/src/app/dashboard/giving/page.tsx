@@ -328,54 +328,120 @@ export default function DonorDashboardPage() {
     }
   }, [docType]);
 
-  // Robust PDF Download handler
+  // Robust PDF / Print handler that guarantees exact design rendering
   const handleDownloadPdf = () => {
     const el = document.getElementById('print-document-node');
     if (!el) return;
 
-    const printWin = window.open('', '_blank', 'width=900,height=1100');
-    if (!printWin) {
-      // Fallback to window.print if popup blocked
-      window.print();
-      return;
+    // Direct native print with pd class for 100% fidelity
+    document.body.classList.add('pd');
+    
+    // Also use hidden iframe method to guarantee clean printable document without popup blocker issues
+    try {
+      const existingIframe = document.getElementById('print-doc-iframe');
+      if (existingIframe) existingIframe.remove();
+
+      const iframe = document.createElement('iframe');
+      iframe.id = 'print-doc-iframe';
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = '0';
+      document.body.appendChild(iframe);
+
+      const doc = iframe.contentWindow?.document;
+      if (doc) {
+        doc.open();
+        doc.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${docType?.startsWith('cert:') ? 'Certificate of Generosity' : 'Giving Statement'} · Ethio Fund</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600&family=Noto+Sans+Ethiopic:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    @page { size: A4 portrait; margin: 0; }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    body { background: #fff; color: #1A1A1A; font-family: 'Figtree', 'Noto Sans Ethiopic', system-ui, sans-serif; display: flex; justify-content: center; }
+    .font-display { font-family: 'Bricolage Grotesque', 'Noto Sans Ethiopic', system-ui, sans-serif; }
+    .paper { width: 794px; min-height: 1123px; background: #fff; margin: 0 auto; position: relative; overflow: hidden; color: #1A1A1A; font: 14px/1.5 'Figtree', sans-serif; }
+    .pbar { height: 12px; background: linear-gradient(90deg, #CCF88E, #6E9A4A 60%, #22421E); }
+    .pin { padding: 44px 56px 48px; }
+    .ph { display: flex; justify-content: space-between; align-items: flex-start; }
+    .plogo { display: flex; align-items: center; gap: 10px; font: 700 24px 'Bricolage Grotesque', sans-serif; }
+    .plogo i { width: 28px; height: 28px; border-radius: 50%; background: #CCF88E; border: 3px solid #1A1A1A; display: inline-block; font-style: normal; }
+    .pm2 { text-align: right; display: grid; gap: 2px; font-size: 12px; color: #6E6E6E; }
+    .pm2 b { font: 700 15px 'Bricolage Grotesque', sans-serif; letter-spacing: .08em; color: #1A1A1A; }
+    .pt { margin: 44px 0 26px; padding: 30px 32px; border-radius: 24px; background: linear-gradient(135deg, #E9FBCF, #CDF68E 60%, #B6EA6C); }
+    .pt small { font-weight: 600; opacity: .65; display: block; }
+    .pt h1 { font: 700 44px/1.05 'Bricolage Grotesque', sans-serif; letter-spacing: -.02em; margin: 2px 0 4px; overflow-wrap: anywhere; }
+    .pt p { margin: 0; }
+    .ps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 28px; }
+    .ps div { border: 1px solid #EBEBEB; border-radius: 18px; padding: 14px 18px; }
+    .ps b { display: block; font: 700 28px/1.1 'Bricolage Grotesque', sans-serif; }
+    .ps span { color: #6E6E6E; font-size: 12px; }
+    .pt2 { width: 100%; border-collapse: collapse; }
+    .pt2 th { text-align: left; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: #6E6E6E; padding: 8px 10px; border-bottom: 2px solid #1A1A1A; }
+    .pt2 td { padding: 10px; border-bottom: 1px solid #EBEBEB; }
+    .pt2 tr { break-inside: avoid; }
+    .pt2 .r { text-align: right; }
+    .pt2 .tt td { font-weight: 700; border-bottom: 0; background: #F6F6F6; }
+    .pf2 { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 40px; break-inside: avoid; }
+    .sig { width: 220px; }
+    .sig .ln { border-top: 1.5px solid #1A1A1A; margin-bottom: 6px; }
+    .sig b { display: block; }
+    .sig span { font-size: 12px; color: #6E6E6E; }
+    .fine { font-size: 11px; color: #6E6E6E; margin-top: 22px; }
+    .wm { position: absolute; inset: 0; display: grid; place-items: center; font: 700 150px 'Bricolage Grotesque', sans-serif; color: rgba(26,26,26,.05); transform: rotate(-30deg); pointer-events: none; letter-spacing: .1em; user-select: none; }
+    .cert { background: linear-gradient(180deg, #fff, #F6FFE6); }
+    .cb1 { position: absolute; inset: 26px; border: 3px solid #2F5D2A; border-radius: 6px; pointer-events: none; }
+    .cb2 { position: absolute; inset: 8px; border: 1px solid #6E9A4A; border-radius: 3px; pointer-events: none; }
+    .cin { position: relative; height: 100%; min-height: 1123px; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 70px 76px 60px; box-sizing: border-box; }
+    .ey { letter-spacing: .35em; font-weight: 700; color: #2F5D2A; margin-top: 30px; font-size: 13px; }
+    .cph { position: relative; display: inline-block; background: linear-gradient(155deg, #E9FBCF 0%, #CDF68E 22%, #6E9A4A 55%, #22421E 100%); border-radius: 28px; padding: 30px 80px 26px; margin: 20px 0 10px; }
+    .cph svg { display: block; }
+    .cbd { position: absolute; right: 44px; bottom: -24px; width: 84px; height: 84px; border-radius: 50%; background: #fff; border: 4px solid #2F5D2A; display: grid; place-items: center; font-size: 44px; box-shadow: 0 8px 20px rgba(0,0,0,.25); }
+    .bn { letter-spacing: .2em; font-weight: 700; font-size: 13px; color: #2F5D2A; margin: 26px 0 2px; }
+    .pre { color: #6E6E6E; margin: 8px 0; font-size: 14px; }
+    .cn { font: 700 64px/1.05 'Bricolage Grotesque', sans-serif; letter-spacing: -.02em; margin: 6px 0 22px; overflow-wrap: anywhere; color: #1A1A1A; }
+    .ctx { font-size: 18px; line-height: 1.7; max-width: 540px; color: #1A1A1A; }
+    .cf { display: flex; justify-content: space-between; align-items: flex-end; width: 100%; margin-top: auto; padding-top: 60px; text-align: left; }
+    .stamp { transform: rotate(-12deg); flex: none; }
+  </style>
+</head>
+<body>
+  ${el.outerHTML}
+</body>
+</html>`);
+        doc.close();
+
+        // Remove any zoom on print element inside iframe
+        const frameDocNode = doc.getElementById('print-document-node');
+        if (frameDocNode) {
+          (frameDocNode as HTMLElement).style.zoom = '1';
+        }
+
+        setTimeout(() => {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+          document.body.classList.remove('pd');
+        }, 300);
+        return;
+      }
+    } catch (err) {
+      console.warn('Iframe print error, falling back to window.print', err);
     }
 
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <title>${docType?.startsWith('cert:') ? 'Certificate of Generosity' : 'Giving Statement'} · Ethio Fund</title>
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600&family=Noto+Sans+Ethiopic:wght@500;700&display=swap" rel="stylesheet">
-        <style>
-          @page { size: A4; margin: 0; }
-          * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-          body { margin: 0; padding: 0; background: #fff; font-family: 'Figtree', sans-serif; display: flex; justify-content: center; }
-          .font-display { font-family: 'Bricolage Grotesque', sans-serif; }
-          .paper-document { width: 794px; min-height: 1123px; position: relative; margin: 0 auto; }
-        </style>
-      </head>
-      <body>
-        <div class="paper-document">
-          ${el.innerHTML}
-        </div>
-        <script>
-          window.onload = function() {
-            setTimeout(function() {
-              window.focus();
-              window.print();
-            }, 350);
-          };
-        <\/script>
-      </body>
-      </html>
-    `;
-
-    printWin.document.open();
-    printWin.document.write(htmlContent);
-    printWin.document.close();
+    // Fallback directly to native window print with class pd
+    window.onafterprint = () => {
+      document.body.classList.remove('pd');
+    };
+    setTimeout(() => {
+      window.print();
+    }, 100);
   };
 
   const donorInitial = (getDonorName()[0] || 'D').toUpperCase();
@@ -397,28 +463,110 @@ export default function DonorDashboardPage() {
           font-family: var(--display);
           letter-spacing: -0.02em;
         }
+        
+        /* Dedicated styles for Certificate & Statement */
+        .paper {
+          width: 794px;
+          min-height: 1123px;
+          background: #fff;
+          margin: 0 auto;
+          position: relative;
+          overflow: hidden;
+          color: #1A1A1A;
+          font-family: 'Figtree', 'Noto Sans Ethiopic', system-ui, sans-serif;
+          font-size: 14px;
+          line-height: 1.5;
+        }
+        .pbar { height: 12px; background: linear-gradient(90deg, #CCF88E, #6E9A4A 60%, #22421E); }
+        .pin { padding: 44px 56px 48px; }
+        .ph { display: flex; justify-content: space-between; align-items: flex-start; }
+        .plogo { display: flex; align-items: center; gap: 10px; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 24px; }
+        .plogo i { width: 28px; height: 28px; border-radius: 50%; background: #CCF88E; border: 3px solid #1A1A1A; display: inline-block; font-style: normal; }
+        .pm2 { text-align: right; display: grid; gap: 2px; font-size: 12px; color: #6E6E6E; }
+        .pm2 b { font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 15px; letter-spacing: .08em; color: #1A1A1A; }
+        .pt { margin: 44px 0 26px; padding: 30px 32px; border-radius: 24px; background: linear-gradient(135deg, #E9FBCF, #CDF68E 60%, #B6EA6C); }
+        .pt small { font-weight: 600; opacity: .65; display: block; }
+        .pt h1 { font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 44px; line-height: 1.05; letter-spacing: -.02em; margin: 2px 0 4px; overflow-wrap: anywhere; }
+        .pt p { margin: 0; }
+        .ps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 28px; }
+        .ps div { border: 1px solid #EBEBEB; border-radius: 18px; padding: 14px 18px; }
+        .ps b { display: block; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 28px; line-height: 1.1; }
+        .ps span { color: #6E6E6E; font-size: 12px; }
+        .pt2 { width: 100%; border-collapse: collapse; }
+        .pt2 th { text-align: left; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: #6E6E6E; padding: 8px 10px; border-bottom: 2px solid #1A1A1A; }
+        .pt2 td { padding: 10px; border-bottom: 1px solid #EBEBEB; }
+        .pt2 tr { break-inside: avoid; }
+        .pt2 .r { text-align: right; }
+        .pt2 .tt td { font-weight: 700; border-bottom: 0; background: #F6F6F6; }
+        .pf2 { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 40px; break-inside: avoid; }
+        .sig { width: 220px; }
+        .sig .ln { border-top: 1.5px solid #1A1A1A; margin-bottom: 6px; }
+        .sig b { display: block; }
+        .sig span { font-size: 12px; color: #6E6E6E; }
+        .fine { font-size: 11px; color: #6E6E6E; margin-top: 22px; }
+        .wm { position: absolute; inset: 0; display: grid; place-items: center; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 150px; color: rgba(26,26,26,.05); transform: rotate(-30deg); pointer-events: none; letter-spacing: .1em; user-select: none; }
+        .cert { background: linear-gradient(180deg, #fff, #F6FFE6) !important; }
+        .cb1 { position: absolute; inset: 26px; border: 3px solid #2F5D2A; border-radius: 6px; pointer-events: none; }
+        .cb2 { position: absolute; inset: 8px; border: 1px solid #6E9A4A; border-radius: 3px; pointer-events: none; }
+        .cin { position: relative; height: 100%; min-height: 1123px; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 70px 76px 60px; box-sizing: border-box; }
+        .ey { letter-spacing: .35em; font-weight: 700; color: #2F5D2A; margin-top: 30px; font-size: 13px; }
+        .cph { position: relative; display: inline-block; background: linear-gradient(155deg, #E9FBCF 0%, #CDF68E 22%, #6E9A4A 55%, #22421E 100%); border-radius: 28px; padding: 30px 80px 26px; margin: 20px 0 10px; }
+        .cph svg { display: block; }
+        .cbd { position: absolute; right: 44px; bottom: -24px; width: 84px; height: 84px; border-radius: 50%; background: #fff; border: 4px solid #2F5D2A; display: grid; place-items: center; font-size: 44px; box-shadow: 0 8px 20px rgba(0,0,0,.25); }
+        .bn { letter-spacing: .2em; font-weight: 700; font-size: 13px; color: #2F5D2A; margin: 26px 0 2px; }
+        .pre { color: #6E6E6E; margin: 8px 0; font-size: 14px; }
+        .cn { font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 64px; line-height: 1.05; letter-spacing: -.02em; margin: 6px 0 22px; overflow-wrap: anywhere; color: #1A1A1A; }
+        .ctx { font-size: 18px; line-height: 1.7; max-width: 540px; color: #1A1A1A; }
+        .cf { display: flex; justify-content: space-between; align-items: flex-end; width: 100%; margin-top: auto; padding-top: 60px; text-align: left; }
+
         @page {
-          size: A4;
+          size: A4 portrait;
           margin: 0;
         }
         @media print {
-          body * {
-            visibility: hidden !important;
+          body.pd > *:not(#print-dialog-wrap) {
+            display: none !important;
           }
-          #print-document-node, #print-document-node * {
-            visibility: visible !important;
-          }
-          #print-document-node {
-            position: fixed !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 794px !important;
-            min-height: 1123px !important;
-            margin: 0 !important;
+          body.pd #print-dialog-wrap {
+            position: static !important;
+            inset: auto !important;
+            width: 100% !important;
+            max-width: none !important;
+            max-height: none !important;
             padding: 0 !important;
-            z-index: 999999 !important;
+            margin: 0 !important;
+            background: none !important;
+            backdrop-filter: none !important;
+            box-shadow: none !important;
+            border: none !important;
+            display: block !important;
+          }
+          body.pd #print-dialog-wrap > div {
+            background: none !important;
+            border: none !important;
+            box-shadow: none !important;
+            border-radius: 0 !important;
+            max-height: none !important;
+            width: 100% !important;
+            max-width: none !important;
+          }
+          body.pd .dbar-strip {
+            display: none !important;
+          }
+          body.pd .dsc-scroll {
+            padding: 0 !important;
+            overflow: visible !important;
+            max-height: none !important;
+            display: block !important;
+          }
+          body.pd .paper {
             zoom: 1 !important;
-            background: #fff !important;
+            box-shadow: none !important;
+            margin: 0 auto !important;
+            page-break-after: avoid !important;
+            break-after: avoid !important;
+          }
+          body.pd * {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
@@ -435,7 +583,7 @@ export default function DonorDashboardPage() {
 
           <div className="flex items-center gap-3.5">
             <Link
-              href="/donate/help-chala-cardiac-surgery"
+              href="/discover"
               className="bg-[#CCF88E] text-[#1A1A1A] border border-[#CCF88E] hover:bg-[#B6EA6C] rounded-full px-4 py-1.5 text-sm font-semibold transition-colors"
             >
               Donate
@@ -592,7 +740,7 @@ export default function DonorDashboardPage() {
             </p>
 
             <Link
-              href="/donate/help-chala-cardiac-surgery"
+              href="/discover"
               className="bg-[#1A1A1A] text-white hover:bg-black rounded-full px-6 py-2.5 font-semibold text-sm transition-colors mt-2"
             >
               Donate now
@@ -675,7 +823,7 @@ export default function DonorDashboardPage() {
                 </div>
 
                 <Link
-                  href={`/donate/${p.slug}`}
+                  href={p.slug ? `/donate/${p.slug}` : '/discover'}
                   className="rounded-full border border-[#1A1A1A] px-4 py-1.5 text-xs font-semibold hover:bg-[#F6F6F6] transition-colors shrink-0"
                 >
                   Give again
@@ -689,7 +837,7 @@ export default function DonorDashboardPage() {
             <br />
             <br />
             <Link
-              href="/donate/help-chala-cardiac-surgery"
+              href="/discover"
               className="inline-block bg-[#1A1A1A] text-white hover:bg-black rounded-full px-5 py-2 text-sm font-semibold transition-colors"
             >
               Find someone to help
@@ -724,7 +872,7 @@ export default function DonorDashboardPage() {
             </div>
 
             <Link
-              href="/donate/help-chala-cardiac-surgery"
+              href="/discover"
               className="bg-[#1A1A1A] text-white hover:bg-black rounded-full px-5 py-2 text-sm font-semibold transition-colors"
             >
               Donate now
@@ -858,7 +1006,7 @@ export default function DonorDashboardPage() {
             Even a small gift adds up. Pick a person and give in a minute.
           </p>
           <Link
-            href="/donate/help-chala-cardiac-surgery"
+            href="/discover"
             className="inline-block bg-[#CCF88E] text-[#1A1A1A] border border-[#CCF88E] hover:bg-[#B6EA6C] rounded-full px-8 py-3.5 text-base font-bold transition-colors shadow-xs"
           >
             Donate now
@@ -959,20 +1107,20 @@ export default function DonorDashboardPage() {
                 return (
                   <div
                     id="print-document-node"
-                    className="paper-document bg-white w-[794px] min-h-[1123px] relative overflow-hidden text-[#1A1A1A] font-sans text-sm leading-relaxed shadow-xl shrink-0"
+                    className="paper bg-white w-[794px] min-h-[1123px] relative overflow-hidden text-[#1A1A1A] font-sans text-sm leading-relaxed shadow-xl shrink-0"
                     style={{ zoom: zoomFactor }}
                   >
-                    <div className="h-3 bg-gradient-to-r from-[#CCF88E] via-[#6E9A4A] via-60% to-[#22421E]" />
+                    <div className="pbar h-3 bg-gradient-to-r from-[#CCF88E] via-[#6E9A4A] via-60% to-[#22421E]" />
                     
-                    <div className="p-11 sm:p-14">
+                    <div className="pin p-11 sm:p-14">
                       {/* Document Header */}
-                      <div className="flex justify-between items-start">
-                        <div className="flex items-center gap-2.5 font-display font-bold text-2xl text-[#1A1A1A]">
+                      <div className="ph flex justify-between items-start">
+                        <div className="plogo flex items-center gap-2.5 font-display font-bold text-2xl text-[#1A1A1A]">
                           <i className="w-7 h-7 rounded-full bg-[#CCF88E] border-[3px] border-[#1A1A1A] inline-block not-italic" />
                           <span>Ethio Fund</span>
                         </div>
 
-                        <div className="text-right text-xs text-[#6E6E6E] space-y-0.5">
+                        <div className="pm2 text-right text-xs text-[#6E6E6E] space-y-0.5">
                           <b className="font-display font-bold text-sm tracking-widest text-[#1A1A1A] block">
                             GIVING STATEMENT
                           </b>
@@ -982,7 +1130,7 @@ export default function DonorDashboardPage() {
                       </div>
 
                       {/* Prepared For Banner */}
-                      <div className="my-9 p-8 rounded-[24px] bg-gradient-to-br from-[#E9FBCF] via-[#CDF68E] via-60% to-[#B6EA6C]">
+                      <div className="pt my-9 p-8 rounded-[24px] bg-gradient-to-br from-[#E9FBCF] via-[#CDF68E] via-60% to-[#B6EA6C]">
                         <small className="font-semibold opacity-70 block text-xs">Prepared for</small>
                         <h1 className="font-display font-bold text-4xl leading-tight my-1 text-[#1A1A1A]">
                           {getDonorName()}
@@ -993,7 +1141,7 @@ export default function DonorDashboardPage() {
                       </div>
 
                       {/* Stat Metrics Box */}
-                      <div className="grid grid-cols-3 gap-3 mb-7">
+                      <div className="ps grid grid-cols-3 gap-3 mb-7">
                         <div className="border border-[#EBEBEB] rounded-[18px] p-4">
                           <b className="font-display font-bold text-2xl leading-none block text-[#1A1A1A]">
                             {f0(totalPeriodAmount)}
@@ -1017,7 +1165,7 @@ export default function DonorDashboardPage() {
                       </div>
 
                       {/* Transactions Table */}
-                      <table className="w-full border-collapse text-left mb-8">
+                      <table className="pt2 w-full border-collapse text-left mb-8">
                         <thead>
                           <tr className="border-b-2 border-[#1A1A1A] text-xs uppercase tracking-wider text-[#6E6E6E]">
                             <th className="py-2.5 px-3">Date</th>
@@ -1041,7 +1189,7 @@ export default function DonorDashboardPage() {
                               </td>
                             </tr>
                           ))}
-                          <tr className="font-bold bg-[#F6F6F6]">
+                          <tr className="tt font-bold bg-[#F6F6F6]">
                             <td colSpan={3} className="py-3 px-3 text-sm">
                               Total
                             </td>
@@ -1053,23 +1201,23 @@ export default function DonorDashboardPage() {
                       </table>
 
                       {/* Document Footer with Signature & Official Stamp */}
-                      <div className="flex justify-between items-end mt-12 pt-6">
-                        <div className="w-[220px]">
-                          <div className="border-t-2 border-[#1A1A1A] mb-1.5" />
+                      <div className="pf2 flex justify-between items-end mt-12 pt-6">
+                        <div className="sig w-[220px]">
+                          <div className="ln border-t-2 border-[#1A1A1A] mb-1.5" />
                           <b className="block text-sm">Ethio Fund</b>
                           <span className="text-xs text-[#6E6E6E]">Authorized record of giving</span>
                         </div>
                         <OfficialStamp sz={150} />
                       </div>
 
-                      <p className="text-[11px] text-[#6E6E6E] mt-8">
+                      <p className="fine text-[11px] text-[#6E6E6E] mt-8">
                         This statement is a record of gifts made through Ethio Fund. Tips to Ethio Fund are not included. It is not a tax invoice.
                         {!realMode && ' SAMPLE DATA.'}
                       </p>
                     </div>
 
                     {!realMode && (
-                      <div className="absolute inset-0 grid place-items-center font-display font-bold text-[150px] text-[#1A1A1A]/5 -rotate-30 pointer-events-none select-none tracking-widest">
+                      <div className="wm absolute inset-0 grid place-items-center font-display font-bold text-[150px] text-[#1A1A1A]/5 -rotate-30 pointer-events-none select-none tracking-widest">
                         SAMPLE
                       </div>
                     )}
@@ -1087,106 +1235,107 @@ export default function DonorDashboardPage() {
                 return (
                   <div
                     id="print-document-node"
-                    className="paper-document bg-gradient-to-b from-white to-[#F6FFE6] w-[794px] min-h-[1123px] relative overflow-hidden text-[#1A1A1A] font-sans text-sm leading-relaxed shadow-xl shrink-0"
-                    style={{ zoom: zoomFactor }}
+                    className="paper cert w-[794px] min-h-[1123px] relative overflow-hidden text-[#1A1A1A] font-sans text-sm leading-relaxed shadow-xl shrink-0"
+                    style={{ zoom: zoomFactor, background: 'linear-gradient(180deg, #ffffff, #F6FFE6)' }}
                   >
-                    {/* Double decorative border */}
-                    <div className="absolute inset-7 border-[3px] border-[#2F5D2A] rounded-md pointer-events-none" />
-                    <div className="absolute inset-2.5 border border-[#6E9A4A] rounded-xs pointer-events-none" />
+                    {/* Double decorative border nesting */}
+                    <div className="cb1">
+                      <div className="cb2">
+                        <div className="cin">
+                          <div className="plogo flex items-center gap-2.5 font-display font-bold text-2xl text-[#1A1A1A]">
+                            <i className="w-7 h-7 rounded-full bg-[#CCF88E] border-[3px] border-[#1A1A1A] inline-block not-italic" />
+                            <span>Ethio Fund</span>
+                          </div>
 
-                    <div className="relative h-full flex flex-col items-center text-center px-18 py-16">
-                      <div className="flex items-center gap-2.5 font-display font-bold text-2xl text-[#1A1A1A]">
-                        <i className="w-7 h-7 rounded-full bg-[#CCF88E] border-[3px] border-[#1A1A1A] inline-block not-italic" />
-                        <span>Ethio Fund</span>
-                      </div>
+                          <div className="ey tracking-[0.35em] font-bold text-[#2F5D2A] mt-8 text-xs">
+                            CERTIFICATE OF GENEROSITY
+                          </div>
 
-                      <div className="tracking-[0.35em] font-bold text-[#2F5D2A] mt-8 text-xs">
-                        CERTIFICATE OF GENEROSITY
-                      </div>
-
-                      {/* Shield Photo Container with Badge Seal */}
-                      <div className="relative inline-block bg-gradient-to-br from-[#E9FBCF] via-[#CDF68E] via-22% via-[#6E9A4A] via-55% to-[#22421E] rounded-[28px] px-20 py-7 my-5">
-                        <svg
-                          viewBox="0 0 226 182"
-                          width="230"
-                          role="img"
-                          aria-label={getDonorName()}
-                          className="block"
-                        >
-                          <defs>
-                            <clipPath id="cert-shield-clip">
-                              <path d={SH} />
-                            </clipPath>
-                          </defs>
-                          <path d={SH} fill="#F4F4F4" />
-                          {profile.photo ? (
-                            <image
-                              href={profile.photo}
-                              width="226"
-                              height="182"
-                              preserveAspectRatio="xMidYMid slice"
-                              clipPath="url(#cert-shield-clip)"
-                            />
-                          ) : (
-                            <text
-                              x="113"
-                              y="120"
-                              textAnchor="middle"
-                              fontFamily="Bricolage Grotesque, system-ui, sans-serif"
-                              fontWeight="700"
-                              fontSize="86"
-                              fill="#1A1A1A"
+                          {/* Shield Photo Container with Badge Seal */}
+                          <div className="cph relative inline-block bg-gradient-to-br from-[#E9FBCF] via-[#CDF68E] via-22% via-[#6E9A4A] via-55% to-[#22421E] rounded-[28px] px-20 py-7 my-5">
+                            <svg
+                              viewBox="0 0 226 182"
+                              width="230"
+                              role="img"
+                              aria-label={getDonorName()}
+                              className="block"
                             >
-                              {donorInitial}
-                            </text>
-                          )}
-                        </svg>
+                              <defs>
+                                <clipPath id="cert-shield-clip">
+                                  <path d={SH} />
+                                </clipPath>
+                              </defs>
+                              <path d={SH} fill="#F4F4F4" />
+                              {profile.photo ? (
+                                <image
+                                  href={profile.photo}
+                                  width="226"
+                                  height="182"
+                                  preserveAspectRatio="xMidYMid slice"
+                                  clipPath="url(#cert-shield-clip)"
+                                />
+                              ) : (
+                                <text
+                                  x="113"
+                                  y="120"
+                                  textAnchor="middle"
+                                  fontFamily="Bricolage Grotesque, system-ui, sans-serif"
+                                  fontWeight="700"
+                                  fontSize="86"
+                                  fill="#1A1A1A"
+                                >
+                                  {donorInitial}
+                                </text>
+                              )}
+                            </svg>
 
-                        <div className="absolute right-10 -bottom-6 w-[84px] h-[84px] rounded-full bg-white border-4 border-[#2F5D2A] grid place-items-center text-4xl shadow-xl">
-                          {b?.icon}
+                            <div className="cbd" role="img" aria-label={`${b?.title} badge`}>
+                              {b?.icon}
+                            </div>
+                          </div>
+
+                          <div className="bn tracking-[0.2em] font-bold text-xs text-[#2F5D2A] mt-6 mb-1">
+                            {b?.title.toUpperCase()} BADGE
+                          </div>
+
+                          <p className="pre text-[#6E6E6E] text-sm my-1">
+                            This certificate is proudly presented to
+                          </p>
+
+                          <div className="cn font-display font-bold text-5xl leading-tight my-2 text-[#1A1A1A]">
+                            {getDonorName()}
+                          </div>
+
+                          <p className="ctx text-lg leading-relaxed max-w-[540px] text-[#1A1A1A]">
+                            {badgeDescriptions[badgeIndex](firstGift)}
+                            {dateEarned ? (
+                              <>
+                                , on <b>{fd(dateEarned)}</b>
+                              </>
+                            ) : null}
+                            , and for helping someone when it mattered most.
+                          </p>
+
+                          {/* Certificate Footer with Signature and Stamp */}
+                          <div className="cf flex justify-between items-end w-full mt-auto pt-16 text-left">
+                            <div className="sig w-[220px]">
+                              <div className="ln border-t-2 border-[#1A1A1A] mb-1.5" />
+                              <b className="block text-sm">Ethio Fund Team</b>
+                              <span className="text-xs text-[#6E6E6E]">Issued {fd(Date.now())}</span>
+                            </div>
+                            <OfficialStamp sz={150} />
+                          </div>
+
+                          <p className="fine text-[11px] text-[#6E6E6E] mt-4">
+                            Certificate no. {getDocNumber(`C${badgeIndex}`, activeDonations)}
+                            {!realMode && ' · SAMPLE DATA'}
+                          </p>
                         </div>
                       </div>
-
-                      <div className="tracking-[0.2em] font-bold text-xs text-[#2F5D2A] mt-6 mb-1">
-                        {b?.title.toUpperCase()} BADGE
-                      </div>
-
-                      <p className="text-[#6E6E6E] text-sm my-1">
-                        This certificate is proudly presented to
-                      </p>
-
-                      <div className="font-display font-bold text-5xl leading-tight my-2 text-[#1A1A1A]">
-                        {getDonorName()}
-                      </div>
-
-                      <p className="text-lg leading-relaxed max-w-[540px] text-[#1A1A1A]">
-                        {badgeDescriptions[badgeIndex](firstGift)}
-                        {dateEarned ? (
-                          <>
-                            , on <b>{fd(dateEarned)}</b>
-                          </>
-                        ) : null}
-                        , and for helping someone when it mattered most.
-                      </p>
-
-                      {/* Certificate Footer with Signature and Stamp */}
-                      <div className="flex justify-between items-end w-full mt-auto pt-16 text-left">
-                        <div className="w-[220px]">
-                          <div className="border-t-2 border-[#1A1A1A] mb-1.5" />
-                          <b className="block text-sm">Ethio Fund Team</b>
-                          <span className="text-xs text-[#6E6E6E]">Issued {fd(Date.now())}</span>
-                        </div>
-                        <OfficialStamp sz={150} />
-                      </div>
-
-                      <p className="text-[11px] text-[#6E6E6E] mt-4">
-                        Certificate no. {getDocNumber(`C${badgeIndex}`, activeDonations)}
-                        {!realMode && ' · SAMPLE DATA'}
-                      </p>
                     </div>
 
                     {!realMode && (
-                      <div className="absolute inset-0 grid place-items-center font-display font-bold text-[150px] text-[#1A1A1A]/5 -rotate-30 pointer-events-none select-none tracking-widest">
+                      <div className="wm absolute inset-0 grid place-items-center font-display font-bold text-[150px] text-[#1A1A1A]/5 -rotate-30 pointer-events-none select-none tracking-widest">
                         SAMPLE
                       </div>
                     )}
