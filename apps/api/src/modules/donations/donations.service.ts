@@ -89,9 +89,25 @@ export class DonationsService {
     }));
   }
 
-  async getUserDonations(userId: string) {
-    let donations = await this.prisma.donation.findMany({
-      where: { donorUserId: userId },
+  async getUserDonations(userId?: string, userEmail?: string) {
+    if (!userId && !userEmail) {
+      return [];
+    }
+
+    const whereClause: any = {};
+    if (userId && userEmail) {
+      whereClause.OR = [
+        { donorUserId: userId },
+        { donorEmail: userEmail.toLowerCase() }
+      ];
+    } else if (userId) {
+      whereClause.donorUserId = userId;
+    } else if (userEmail) {
+      whereClause.donorEmail = userEmail.toLowerCase();
+    }
+
+    const donations = await this.prisma.donation.findMany({
+      where: whereClause,
       include: {
         campaign: {
           select: { title: true, slug: true, coverImageUrl: true },
@@ -100,22 +116,10 @@ export class DonationsService {
       orderBy: { createdAt: 'desc' },
     });
 
-    // If no donations found for this specific user ID, fetch any donations in store/db as fallback
-    if (!donations || donations.length === 0) {
-      donations = await this.prisma.donation.findMany({
-        include: {
-          campaign: {
-            select: { title: true, slug: true, coverImageUrl: true },
-          },
-        },
-        orderBy: { createdAt: 'desc' },
-      });
-    }
-
     return donations.map((d) => ({
       id: d.id,
       donationReference: d.donationReference,
-      campaignTitle: d.campaign?.title || 'Urgent Medical Fund',
+      campaignTitle: d.campaign?.title || 'Ethio Fund Campaign',
       campaignSlug: d.campaign?.slug || 'help-chala-cardiac-surgery',
       coverImageUrl: d.campaign?.coverImageUrl || '',
       amountEtb: Number(d.amountCents) / 100,

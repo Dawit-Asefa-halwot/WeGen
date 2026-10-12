@@ -5,10 +5,12 @@ const zod_1 = require("zod");
 // Auth Schemas
 exports.RegisterSchema = zod_1.z.object({
     email: zod_1.z.string().email({ message: 'Invalid email address' }),
-    password: zod_1.z.string().min(8, { message: 'Password must be at least 8 characters long' }),
-    firstName: zod_1.z.string().min(2, { message: 'First name is required' }),
-    lastName: zod_1.z.string().min(2, { message: 'Last name is required' }),
-    phoneNumber: zod_1.z.string().optional()
+    password: zod_1.z.string().min(6, { message: 'Password must be at least 6 characters long' }),
+    firstName: zod_1.z.string().min(1, { message: 'First name is required' }),
+    lastName: zod_1.z.string().min(1, { message: 'Last name is required' }),
+    phoneNumber: zod_1.z.string().optional(),
+    role: zod_1.z.enum(['SUPER_ADMIN', 'ADMIN', 'STAFF', 'USER', 'DONOR', 'FUNDRAISER', 'REFERRER', 'ORGANIZATION_ADMIN', 'ORGANIZATION_MEMBER']).optional(),
+    organizationId: zod_1.z.string().optional(),
 });
 exports.LoginSchema = zod_1.z.object({
     email: zod_1.z.string().email({ message: 'Invalid email address' }),

@@ -5,18 +5,24 @@ export declare const RegisterSchema: z.ZodObject<{
     firstName: z.ZodString;
     lastName: z.ZodString;
     phoneNumber: z.ZodOptional<z.ZodString>;
+    role: z.ZodOptional<z.ZodEnum<["SUPER_ADMIN", "ADMIN", "STAFF", "USER", "DONOR", "FUNDRAISER", "REFERRER", "ORGANIZATION_ADMIN", "ORGANIZATION_MEMBER"]>>;
+    organizationId: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     email: string;
     password: string;
     firstName: string;
     lastName: string;
     phoneNumber?: string | undefined;
+    role?: "SUPER_ADMIN" | "ADMIN" | "STAFF" | "USER" | "DONOR" | "FUNDRAISER" | "REFERRER" | "ORGANIZATION_ADMIN" | "ORGANIZATION_MEMBER" | undefined;
+    organizationId?: string | undefined;
 }, {
     email: string;
     password: string;
     firstName: string;
     lastName: string;
     phoneNumber?: string | undefined;
+    role?: "SUPER_ADMIN" | "ADMIN" | "STAFF" | "USER" | "DONOR" | "FUNDRAISER" | "REFERRER" | "ORGANIZATION_ADMIN" | "ORGANIZATION_MEMBER" | undefined;
+    organizationId?: string | undefined;
 }>;
 export declare const LoginSchema: z.ZodObject<{
     email: z.ZodString;

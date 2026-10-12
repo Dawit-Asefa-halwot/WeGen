@@ -27,10 +27,13 @@ export class DonationsController {
   @Get('my-donations')
   async getMyDonations(
     @CurrentUser('id') authUserId?: string,
+    @CurrentUser('email') authUserEmail?: string,
     @Query('userId') queryUserId?: string,
+    @Query('email') queryEmail?: string,
   ) {
-    const userId = authUserId || queryUserId || 'u_donor_1';
-    return this.donationsService.getUserDonations(userId);
+    const userId = authUserId || queryUserId;
+    const email = authUserEmail || queryEmail;
+    return this.donationsService.getUserDonations(userId, email);
   }
 
   @Get('receipt/:reference')

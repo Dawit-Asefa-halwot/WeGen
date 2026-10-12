@@ -41,10 +41,18 @@ function RegisterContent() {
     const firstName = parts[0] || 'User';
     const lastName  = parts.slice(1).join(' ') || 'Member';
 
-    // Store donor profile in localStorage so donor dashboard displays their name immediately
+    // Store donor profile in localStorage and custom users store so donor dashboard and login knows their exact identity
     try {
       localStorage.setItem('ethiofund-donor', JSON.stringify({ name: fullName.trim() }));
       localStorage.setItem('ethiofund-user', JSON.stringify({ email: email.trim(), role: 'DONOR' }));
+      const { saveCustomUser } = await import('../../../lib/custom-users');
+      saveCustomUser({
+        name: fullName.trim(),
+        email: email.trim(),
+        phone: phone ? phone.trim() : '0911000000',
+        password,
+        role: 'DONOR',
+      });
     } catch {}
 
     try {

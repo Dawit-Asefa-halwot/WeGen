@@ -4,7 +4,7 @@ export interface CustomUserAccount {
   email: string;
   phone: string;
   password: string;
-  role: 'FUNDRAISER' | 'ORGANIZATION_ADMIN' | 'ORGANIZATION_MEMBER' | 'DONOR';
+  role: 'FUNDRAISER' | 'ORGANIZATION_ADMIN' | 'ORGANIZATION_MEMBER' | 'DONOR' | 'SUPER_ADMIN' | 'ADMIN' | 'STAFF';
   orgSlug?: string;
   orgName?: string;
   campaignType?: 'me' | 'other' | 'org';

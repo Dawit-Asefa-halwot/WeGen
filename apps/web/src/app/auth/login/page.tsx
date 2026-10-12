@@ -33,7 +33,7 @@ function LoginContent() {
   const [socialNotice, setSocialNotice] = useState('');
   const [loading,      setLoading]      = useState(false);
 
-  const nextUrl = searchParams.get('next') || '/dashboard';
+  const nextUrl = searchParams.get('next');
 
   const validateEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e.trim());
 
@@ -51,13 +51,30 @@ function LoginContent() {
 
     const normEmail = email.trim().toLowerCase();
 
-    // ── Check Custom Users (Campaign Creators & Charity Org Admins/Members) ──
+    // ── Check Custom Users (Donors, Campaign Creators, Charity Admins, Platform Admins/Staff) ──
     const customUser = authenticateCustomUser(normEmail, password);
     if (customUser) {
       const isOrgUser = customUser.role === 'ORGANIZATION_ADMIN' || customUser.role === 'ORGANIZATION_MEMBER';
+      const isDonor = customUser.role === 'DONOR';
+      const isAdmin = customUser.role === 'ADMIN';
+      const isStaff = customUser.role === 'STAFF';
+      const isSuper = customUser.role === 'SUPER_ADMIN';
+
       const nameParts = (customUser.name || 'User').split(' ');
       const firstName = nameParts[0] || 'User';
-      const lastName = nameParts.slice(1).join(' ') || (isOrgUser ? 'Admin' : 'Fundraiser');
+      const lastName = nameParts.slice(1).join(' ') || (isOrgUser ? 'Admin' : isDonor ? 'Donor' : 'Member');
+
+      const userRoles: string[] = isSuper
+        ? ['SUPER_ADMIN', 'ADMIN']
+        : isAdmin
+        ? ['ADMIN']
+        : isStaff
+        ? ['STAFF']
+        : isOrgUser
+        ? ['ORGANIZATION_ADMIN', 'USER']
+        : isDonor
+        ? ['DONOR', 'USER']
+        : ['FUNDRAISER', 'USER'];
 
       setAuth(
         {
@@ -65,7 +82,7 @@ function LoginContent() {
           email: customUser.email,
           firstName,
           lastName,
-          roles: isOrgUser ? ['ORGANIZATION_ADMIN', 'USER'] : ['FUNDRAISER', 'USER'],
+          roles: userRoles,
           isEmailVerified: true,
         },
         `token-${customUser.id}`
@@ -75,6 +92,7 @@ function LoginContent() {
         localStorage.setItem(
           'ethiofund-user',
           JSON.stringify({
+            id: customUser.id,
             email: customUser.email,
             name: customUser.name,
             phone: customUser.phone,
@@ -82,13 +100,24 @@ function LoginContent() {
             orgSlug: customUser.orgSlug,
           })
         );
+        if (isDonor) {
+          localStorage.setItem('ethiofund-donor', JSON.stringify({ name: customUser.name }));
+        }
       } catch {}
 
       setLoading(false);
-      if (isOrgUser) {
+      if (isSuper) {
+        router.push('/super');
+      } else if (isAdmin) {
+        router.push('/admin');
+      } else if (isStaff) {
+        router.push('/staff');
+      } else if (isOrgUser) {
         router.push(`/org/${customUser.orgSlug || 'hope-ethiopia'}`);
+      } else if (isDonor) {
+        router.push('/dashboard/giving');
       } else {
-        router.push(nextUrl || '/dashboard');
+        router.push('/dashboard');
       }
       return;
     }
@@ -192,33 +221,93 @@ function LoginContent() {
       setLoading(false);
 
       if (res.success && res.data) {
-        setAuth(res.data.user, res.data.tokens.accessToken);
-        if (res.data.user.roles.includes('ADMIN')) {
+        const u = res.data.user;
+        setAuth(u, res.data.tokens.accessToken);
+
+        // Store user and profile details
+        localStorage.setItem(
+          'ethiofund-user',
+          JSON.stringify({
+            id: u.id,
+            email: u.email,
+            name: `${u.firstName || ''} ${u.lastName || ''}`.trim(),
+            roles: u.roles,
+            orgSlug: u.organization?.slug,
+          })
+        );
+
+        if (u.roles.includes('SUPER_ADMIN')) {
+          router.push('/super');
+          return;
+        }
+        if (u.roles.includes('STAFF')) {
+          router.push('/staff');
+          return;
+        }
+        if (u.roles.includes('ADMIN')) {
           router.push('/admin');
           return;
         }
-        if (res.data.user.roles.includes('DONOR')) {
+        if (u.roles.includes('ORGANIZATION_ADMIN') || u.roles.includes('ORGANIZATION_MEMBER')) {
+          const orgSlug = u.organization?.slug || 'hope-ethiopia';
+          router.push(`/org/${orgSlug}`);
+          return;
+        }
+        if (u.roles.includes('DONOR')) {
+          localStorage.setItem('ethiofund-donor', JSON.stringify({ name: `${u.firstName || ''} ${u.lastName || ''}`.trim() }));
           router.push('/dashboard/giving');
           return;
         }
+        if (u.roles.includes('FUNDRAISER')) {
+          router.push('/dashboard');
+          return;
+        }
       } else {
+        // Inspect whether previously stored profile was a donor
+        let isExistingDonor = false;
+        try {
+          const stored = localStorage.getItem('ethiofund-user');
+          if (stored) {
+            const u = JSON.parse(stored);
+            if (u.role === 'DONOR') isExistingDonor = true;
+          }
+        } catch {}
+
         setAuth(
           {
             id: 'u1',
             email: email.trim(),
             firstName: email.split('@')[0],
-            lastName: 'User',
-            roles: ['FUNDRAISER'],
+            lastName: isExistingDonor ? 'Donor' : 'User',
+            roles: isExistingDonor ? ['DONOR', 'USER'] : ['FUNDRAISER'],
             isEmailVerified: true,
           },
           'demo-access-token'
         );
+
+        if (isExistingDonor) {
+          router.push('/dashboard/giving');
+          return;
+        }
       }
 
-      router.push(nextUrl);
+      router.push(nextUrl || '/dashboard');
     } catch {
       setLoading(false);
-      router.push(nextUrl);
+      let isExistingDonor = false;
+      try {
+        const stored = localStorage.getItem('ethiofund-user');
+        if (stored) {
+          const u = JSON.parse(stored);
+          if (u.role === 'DONOR') isExistingDonor = true;
+        }
+      } catch {}
+
+      if (isExistingDonor) {
+        router.push('/dashboard/giving');
+      } else {
+        router.push(nextUrl || '/dashboard');
+      }
     }
   };
 

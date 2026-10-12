@@ -3,10 +3,12 @@ import { z } from 'zod';
 // Auth Schemas
 export const RegisterSchema = z.object({
   email: z.string().email({ message: 'Invalid email address' }),
-  password: z.string().min(8, { message: 'Password must be at least 8 characters long' }),
-  firstName: z.string().min(2, { message: 'First name is required' }),
-  lastName: z.string().min(2, { message: 'Last name is required' }),
-  phoneNumber: z.string().optional()
+  password: z.string().min(6, { message: 'Password must be at least 6 characters long' }),
+  firstName: z.string().min(1, { message: 'First name is required' }),
+  lastName: z.string().min(1, { message: 'Last name is required' }),
+  phoneNumber: z.string().optional(),
+  role: z.enum(['SUPER_ADMIN', 'ADMIN', 'STAFF', 'USER', 'DONOR', 'FUNDRAISER', 'REFERRER', 'ORGANIZATION_ADMIN', 'ORGANIZATION_MEMBER']).optional(),
+  organizationId: z.string().optional(),
 });
 
 export const LoginSchema = z.object({

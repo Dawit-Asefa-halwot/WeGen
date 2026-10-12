@@ -123,10 +123,14 @@ export default function DonorDashboardPage() {
           if (parsed.name) setTempName(parsed.name);
         }
 
+        let activeEmail = 'donor@wegen.et';
         const storedWegenUser = localStorage.getItem('wegen_user');
         if (storedWegenUser) {
           const wu = JSON.parse(storedWegenUser);
-          if (wu.email) setUserEmail(wu.email);
+          if (wu.email) {
+            activeEmail = wu.email;
+            setUserEmail(wu.email);
+          }
           if (!storedDonor && (wu.firstName || wu.lastName)) {
             const fullName = `${wu.firstName || ''} ${wu.lastName || ''}`.trim();
             setProfile((prev) => ({ ...prev, name: fullName }));
@@ -136,12 +140,16 @@ export default function DonorDashboardPage() {
           const storedEthioUser = localStorage.getItem('ethiofund-user');
           if (storedEthioUser) {
             const u = JSON.parse(storedEthioUser);
-            if (u.email) setUserEmail(u.email);
+            if (u.email) {
+              activeEmail = u.email;
+              setUserEmail(u.email);
+            }
           }
         }
 
         // 2. Fetch from WeGen Database API (/donations/my-donations)
-        const res = await apiRequest<any[]>('/donations/my-donations');
+        const emailParam = encodeURIComponent(activeEmail);
+        const res = await apiRequest<any[]>(`/donations/my-donations?email=${emailParam}`);
         if (res.success && Array.isArray(res.data) && res.data.length > 0) {
           const mapped: DonationItem[] = res.data.map((item: any) => ({
             id: item.id || item.donationReference,

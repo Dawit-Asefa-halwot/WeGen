@@ -53,26 +53,64 @@ export default function SuperTeamPage() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'ADMIN' | 'STAFF'>('STAFF');
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [invitePassword, setInvitePassword] = useState('Password123!');
+  const [invitePhone, setInvitePhone] = useState('0911000000');
 
-  const handleInviteSubmit = (e: React.FormEvent) => {
+  const handleInviteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteName.trim() || !inviteEmail.trim()) return;
 
+    const email = inviteEmail.trim().toLowerCase();
+    const name = inviteName.trim();
+    const pwd = invitePassword.trim() || 'Password123!';
+    const phone = invitePhone.trim() || '0911000000';
+
     const newMember: TeamMember = {
       id: `tm-${Date.now()}`,
-      name: inviteName.trim(),
-      email: inviteEmail.trim(),
+      name,
+      email,
       role: inviteRole,
-      status: 'Invited',
-      lastActive: 'Invite pending (expires in 48h)',
+      status: 'Active',
+      lastActive: 'Just now',
     };
+
+    // Save to local storage for instant sign-in
+    try {
+      const { saveCustomUser } = await import('@/lib/custom-users');
+      saveCustomUser({
+        name,
+        email,
+        phone,
+        password: pwd,
+        role: inviteRole,
+      });
+    } catch (err) {
+      console.warn('Could not save to custom users store', err);
+    }
+
+    // Attempt to register in backend API as well
+    try {
+      const { apiRequest } = await import('@/lib/api-client');
+      await apiRequest('/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({
+          email,
+          password: pwd,
+          fullName: name,
+          phone,
+          role: inviteRole,
+        }),
+      });
+    } catch {
+      // Backend fallback already handled by custom user store
+    }
 
     setTeam((prev) => [...prev, newMember]);
     setShowInviteModal(false);
     setInviteName('');
     setInviteEmail('');
-    setFeedback(`Invitation sent to ${newMember.email} with single-use 48h activation token.`);
-    setTimeout(() => setFeedback(null), 4000);
+    setFeedback(`Team member account created for ${newMember.email} with role ${inviteRole}. They can now log in immediately with their credentials.`);
+    setTimeout(() => setFeedback(null), 5000);
   };
 
   const handleRoleChange = (memberId: string, newRole: 'ADMIN' | 'STAFF') => {
@@ -295,6 +333,30 @@ export default function SuperTeamPage() {
               </div>
 
               <div>
+                <label className="block text-xs font-bold text-[#6E6E6E] mb-1">Phone Number</label>
+                <input
+                  type="tel"
+                  required
+                  value={invitePhone}
+                  onChange={(e) => setInvitePhone(e.target.value)}
+                  placeholder="0911223344"
+                  className="w-full border border-[#EBEBEB] rounded-xl px-3.5 py-2.5 text-xs outline-none focus:border-[#1A1A1A]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#6E6E6E] mb-1">Initial Password</label>
+                <input
+                  type="password"
+                  required
+                  value={invitePassword}
+                  onChange={(e) => setInvitePassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full border border-[#EBEBEB] rounded-xl px-3.5 py-2.5 text-xs outline-none focus:border-[#1A1A1A]"
+                />
+              </div>
+
+              <div>
                 <label className="block text-xs font-bold text-[#6E6E6E] mb-1">Assigned Role</label>
                 <select
                   value={inviteRole}
@@ -307,7 +369,7 @@ export default function SuperTeamPage() {
               </div>
 
               <div className="p-3 bg-[#F9FAFB] border border-[#EBEBEB] rounded-xl text-[11px] text-[#6E6E6E] leading-relaxed">
-                The member will receive an activation email with a single-use token expiring in 48 hours.
+                The member can immediately sign in at <span className="font-mono text-[#1A1A1A] font-bold">/auth/login</span> using this email and password, landing directly in their assigned portal.
               </div>
 
               <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#EBEBEB]">

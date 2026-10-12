@@ -32,9 +32,20 @@ export class AuthService {
       const salt = await bcrypt.genSalt(10);
       const passwordHash = await bcrypt.hash(dto.password, salt);
 
-      const userRole = await this.prisma.role.findUnique({
+      // Determine roles to assign
+      const targetRoleName = (dto.role as UserRoleName) || UserRoleName.USER;
+      const targetRole = await this.prisma.role.findUnique({
+        where: { name: targetRoleName },
+      });
+      const defaultUserRole = await this.prisma.role.findUnique({
         where: { name: UserRoleName.USER },
       });
+
+      const roleIdsToAssign = new Set<string>();
+      if (defaultUserRole) roleIdsToAssign.add(defaultUserRole.id);
+      if (targetRole) roleIdsToAssign.add(targetRole.id);
+
+      const rolesCreateData = Array.from(roleIdsToAssign).map((rId) => ({ roleId: rId }));
 
       const user = await this.prisma.user.create({
         data: {
@@ -44,9 +55,19 @@ export class AuthService {
           lastName: dto.lastName,
           phoneNumber: dto.phoneNumber,
           emailVerificationCode: '123456',
-          roles: userRole ? { create: [{ roleId: userRole.id }] } : undefined,
+          isEmailVerified: true,
+          roles: rolesCreateData.length > 0 ? { create: rolesCreateData } : undefined,
+          orgMemberships: dto.organizationId ? {
+            create: [{
+              organizationId: dto.organizationId,
+              role: dto.role === 'ORGANIZATION_ADMIN' ? 'ADMIN' : 'MEMBER'
+            }]
+          } : undefined
         },
-        include: { roles: { include: { role: true } } },
+        include: {
+          roles: { include: { role: true } },
+          orgMemberships: { include: { organization: true } }
+        },
       });
 
       const roles = user.roles.map((r) => r.role.name);
@@ -58,8 +79,14 @@ export class AuthService {
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
+          phoneNumber: user.phoneNumber,
           isEmailVerified: user.isEmailVerified,
           roles,
+          organization: user.orgMemberships?.[0]?.organization ? {
+            id: user.orgMemberships[0].organization.id,
+            name: user.orgMemberships[0].organization.name,
+            slug: user.orgMemberships[0].organization.slug,
+          } : undefined
         },
         tokens,
       };
@@ -73,6 +100,9 @@ export class AuthService {
       }
 
       const salt = bcrypt.genSaltSync(10);
+      const rolesToAssign = [dto.role || 'USER'];
+      if (!rolesToAssign.includes('USER')) rolesToAssign.push('USER');
+
       const newUser: MockUser = {
         id: `u-${Date.now()}`,
         email: emailLower,
@@ -81,7 +111,7 @@ export class AuthService {
         lastName: dto.lastName,
         phoneNumber: dto.phoneNumber,
         isEmailVerified: true,
-        roles: ['USER'],
+        roles: rolesToAssign,
         createdAt: new Date(),
       };
 
@@ -94,6 +124,7 @@ export class AuthService {
           email: newUser.email,
           firstName: newUser.firstName,
           lastName: newUser.lastName,
+          phoneNumber: newUser.phoneNumber,
           isEmailVerified: newUser.isEmailVerified,
           roles: newUser.roles,
         },
@@ -108,7 +139,10 @@ export class AuthService {
     try {
       const user = await this.prisma.user.findUnique({
         where: { email: emailLower },
-        include: { roles: { include: { role: true } } },
+        include: {
+          roles: { include: { role: true } },
+          orgMemberships: { include: { organization: true } }
+        },
       });
 
       if (!user) {
@@ -129,8 +163,14 @@ export class AuthService {
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
+          phoneNumber: user.phoneNumber,
           isEmailVerified: user.isEmailVerified,
           roles,
+          organization: user.orgMemberships?.[0]?.organization ? {
+            id: user.orgMemberships[0].organization.id,
+            name: user.orgMemberships[0].organization.name,
+            slug: user.orgMemberships[0].organization.slug,
+          } : undefined
         },
         tokens,
       };
