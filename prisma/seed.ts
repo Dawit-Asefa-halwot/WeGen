@@ -13,7 +13,9 @@ async function main() {
 
   // 1. Roles
   const roles = [
-    { name: UserRoleName.ADMIN, description: 'System Administrator with full access' },
+    { name: UserRoleName.SUPER_ADMIN, description: 'Super Administrator with ultimate platform control' },
+    { name: UserRoleName.ADMIN, description: 'System Administrator with full operational access' },
+    { name: UserRoleName.STAFF, description: 'Staff reviewer for campaign and KYC verification' },
     { name: UserRoleName.USER, description: 'Standard registered platform user' },
     { name: UserRoleName.DONOR, description: 'User who supports campaigns' },
     { name: UserRoleName.FUNDRAISER, description: 'User who creates personal campaigns' },
@@ -108,18 +110,47 @@ async function main() {
   }
   console.log('✅ Payment Providers seeded');
 
-  // 5. Seed Initial Admin Account (Demo/Dev only)
+  // 5. Seed Super Admin, Admin, and Staff Accounts
+  const superAdminRole = await prisma.role.findUnique({ where: { name: UserRoleName.SUPER_ADMIN } });
   const adminRole = await prisma.role.findUnique({ where: { name: UserRoleName.ADMIN } });
+  const staffRole = await prisma.role.findUnique({ where: { name: UserRoleName.STAFF } });
   const userRole = await prisma.role.findUnique({ where: { name: UserRoleName.USER } });
   const fundraiserRole = await prisma.role.findUnique({ where: { name: UserRoleName.FUNDRAISER } });
   const orgAdminRole = await prisma.role.findUnique({ where: { name: UserRoleName.ORGANIZATION_ADMIN } });
 
+  const superAdminUser = await prisma.user.upsert({
+    where: { email: 'superadmin@wegen.et' },
+    update: {
+      passwordHash: hashPassword('SuperAdmin@2026'),
+      isEmailVerified: true,
+    },
+    create: {
+      email: 'superadmin@wegen.et',
+      passwordHash: hashPassword('SuperAdmin@2026'),
+      firstName: 'Dawit',
+      lastName: 'Asefa',
+      phoneNumber: '+251911000001',
+      isEmailVerified: true,
+      roles: {
+        create: [
+          { roleId: superAdminRole!.id },
+          { roleId: adminRole!.id },
+          { roleId: userRole!.id },
+        ],
+      },
+    },
+  });
+  console.log('✅ Super Admin account created (superadmin@wegen.et / SuperAdmin@2026)');
+
   const adminUser = await prisma.user.upsert({
     where: { email: 'admin@wegen.et' },
-    update: {},
+    update: {
+      passwordHash: hashPassword('Admin@2026'),
+      isEmailVerified: true,
+    },
     create: {
       email: 'admin@wegen.et',
-      passwordHash: hashPassword('AdminWeGen2026!'),
+      passwordHash: hashPassword('Admin@2026'),
       firstName: 'WeGen',
       lastName: 'Administrator',
       phoneNumber: '+251911000000',
@@ -127,12 +158,35 @@ async function main() {
       roles: {
         create: [
           { roleId: adminRole!.id },
-          { roleId: userRole!.id }
-        ]
-      }
-    }
+          { roleId: userRole!.id },
+        ],
+      },
+    },
   });
-  console.log('✅ System Admin account created (admin@wegen.et)');
+  console.log('✅ System Admin account created (admin@wegen.et / Admin@2026)');
+
+  const staffUser = await prisma.user.upsert({
+    where: { email: 'staff@wegen.et' },
+    update: {
+      passwordHash: hashPassword('Staff@2026'),
+      isEmailVerified: true,
+    },
+    create: {
+      email: 'staff@wegen.et',
+      passwordHash: hashPassword('Staff@2026'),
+      firstName: 'Selamawit',
+      lastName: 'Reviewer',
+      phoneNumber: '+251911000002',
+      isEmailVerified: true,
+      roles: {
+        create: [
+          { roleId: staffRole!.id },
+          { roleId: userRole!.id },
+        ],
+      },
+    },
+  });
+  console.log('✅ Staff Reviewer account created (staff@wegen.et / Staff@2026)');
 
   // 6. Seed Demo Fundraiser & Referral User
   const demoFundraiser = await prisma.user.upsert({

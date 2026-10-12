@@ -149,9 +149,20 @@ export class AuthService {
         throw new UnauthorizedException('Invalid email or password');
       }
 
-      const isMatch = await bcrypt.compare(dto.password, user.passwordHash);
+      let isMatch = await bcrypt.compare(dto.password, user.passwordHash);
+      if (!isMatch) {
+        // Fallback for demo/seeded accounts with sha256
+        const shaCheck = crypto.createHash('sha256').update(dto.password + 'wegen_salt').digest('hex');
+        if (shaCheck === user.passwordHash) {
+          isMatch = true;
+        }
+      }
       if (!isMatch) {
         throw new UnauthorizedException('Invalid email or password');
+      }
+
+      if (!user.isActive) {
+        throw new UnauthorizedException('This account has been suspended by the platform administrator');
       }
 
       const roles = user.roles.map((r) => r.role.name);

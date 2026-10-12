@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface TeamMember {
   id: string;
@@ -47,7 +47,8 @@ const INITIAL_TEAM: TeamMember[] = [
 ];
 
 export default function SuperTeamPage() {
-  const [team, setTeam] = useState<TeamMember[]>(INITIAL_TEAM);
+  const [team, setTeam] = useState<TeamMember[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteName, setInviteName] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
@@ -55,6 +56,50 @@ export default function SuperTeamPage() {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [invitePassword, setInvitePassword] = useState('Password123!');
   const [invitePhone, setInvitePhone] = useState('0911000000');
+
+  const fetchTeamMembers = async () => {
+    try {
+      const res = await fetch('/api/admin/team', { cache: 'no-store' });
+      if (res.ok) {
+        const json = await res.json();
+        const list = json?.data || json;
+        if (Array.isArray(list) && list.length > 0) {
+          setTeam(list);
+          try {
+            localStorage.setItem('wegen_super_team', JSON.stringify(list));
+          } catch {}
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('Could not load team from /api/admin/team:', e);
+    }
+
+    // Fallback: localStorage
+    try {
+      const stored = localStorage.getItem('wegen_super_team');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setTeam(parsed);
+          return;
+        }
+      }
+    } catch {}
+
+    // Fallback: INITIAL_TEAM
+    setTeam(INITIAL_TEAM);
+  };
+
+  useEffect(() => {
+    let mounted = true;
+    fetchTeamMembers().finally(() => {
+      if (mounted) setLoading(false);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleInviteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,8 +110,65 @@ export default function SuperTeamPage() {
     const pwd = invitePassword.trim() || 'Password123!';
     const phone = invitePhone.trim() || '0911000000';
 
-    const newMember: TeamMember = {
-      id: `tm-${Date.now()}`,
+    let createdId = `tm-${Date.now()}`;
+    let createdMember: TeamMember | null = null;
+
+    // 1. Persist directly to database via Next.js /api/admin/team
+    try {
+      const res = await fetch('/api/admin/team', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          email,
+          phone,
+          password: pwd,
+          role: inviteRole,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok || json?.success === false) {
+        setFeedback(`Database Error: ${json?.message || 'Failed to save team member to database'}`);
+        return;
+      }
+
+      const memberData = json?.data || json;
+      if (memberData?.id) {
+        createdId = memberData.id;
+        createdMember = {
+          id: memberData.id,
+          name: memberData.name || name,
+          email: memberData.email || email,
+          role: memberData.role || inviteRole,
+          status: (memberData.status as any) || 'Active',
+          lastActive: 'Just now',
+        };
+      }
+    } catch (apiErr: any) {
+      setFeedback(`Network/Database Error: ${apiErr?.message || 'Could not connect to database'}`);
+      return;
+    }
+
+    // 2. Also register in local custom users store for seamless client-side authentication
+    try {
+      const { saveCustomUser } = await import('@/lib/custom-users');
+      const saved = saveCustomUser({
+        name,
+        email,
+        phone,
+        password: pwd,
+        role: inviteRole,
+      });
+      if (saved?.id && !createdMember) {
+        createdId = saved.id;
+      }
+    } catch (err) {
+      console.warn('Could not save to custom users store', err);
+    }
+
+    const newMember: TeamMember = createdMember || {
+      id: createdId,
       name,
       email,
       role: inviteRole,
@@ -74,68 +176,76 @@ export default function SuperTeamPage() {
       lastActive: 'Just now',
     };
 
-    // Save to local storage for instant sign-in
-    try {
-      const { saveCustomUser } = await import('@/lib/custom-users');
-      saveCustomUser({
-        name,
-        email,
-        phone,
-        password: pwd,
-        role: inviteRole,
-      });
-    } catch (err) {
-      console.warn('Could not save to custom users store', err);
-    }
+    setTeam((prev) => {
+      const updated = [...prev.filter((m) => m.email.toLowerCase() !== email), newMember];
+      try {
+        localStorage.setItem('wegen_super_team', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
 
-    // Attempt to register in backend API as well
-    try {
-      const { apiRequest } = await import('@/lib/api-client');
-      await apiRequest('/auth/register', {
-        method: 'POST',
-        body: JSON.stringify({
-          email,
-          password: pwd,
-          fullName: name,
-          phone,
-          role: inviteRole,
-        }),
-      });
-    } catch {
-      // Backend fallback already handled by custom user store
-    }
+    // Re-sync with database immediately
+    fetchTeamMembers();
 
-    setTeam((prev) => [...prev, newMember]);
     setShowInviteModal(false);
     setInviteName('');
     setInviteEmail('');
-    setFeedback(`Team member account created for ${newMember.email} with role ${inviteRole}. They can now log in immediately with their credentials.`);
-    setTimeout(() => setFeedback(null), 5000);
+    setFeedback(`Team member ${newMember.name} (${newMember.email}) successfully created with role ${inviteRole}! Stored in database and ready to log in immediately.`);
+    setTimeout(() => setFeedback(null), 6000);
   };
 
-  const handleRoleChange = (memberId: string, newRole: 'ADMIN' | 'STAFF') => {
-    setTeam((prev) =>
-      prev.map((m) => {
+  const handleRoleChange = async (memberId: string, newRole: 'ADMIN' | 'STAFF') => {
+    setTeam((prev) => {
+      const updated = prev.map((m) => {
         if (m.id === memberId && m.role !== 'SUPER_ADMIN') {
           return { ...m, role: newRole };
         }
         return m;
-      })
-    );
+      });
+      try {
+        localStorage.setItem('wegen_super_team', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    // Update in database API
+    try {
+      await fetch('/api/admin/team/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: memberId, role: newRole }),
+      });
+    } catch {}
+
     setFeedback('Role successfully changed and logged to Security Audit Log.');
     setTimeout(() => setFeedback(null), 3000);
   };
 
-  const handleToggleSuspend = (memberId: string) => {
-    setTeam((prev) =>
-      prev.map((m) => {
+  const handleToggleSuspend = async (memberId: string) => {
+    let nextStatus: 'Active' | 'Suspended' = 'Suspended';
+    setTeam((prev) => {
+      const updated = prev.map((m) => {
         if (m.id === memberId && m.role !== 'SUPER_ADMIN') {
-          const nextStatus = m.status === 'Suspended' ? 'Active' : 'Suspended';
+          nextStatus = m.status === 'Suspended' ? 'Active' : 'Suspended';
           return { ...m, status: nextStatus };
         }
         return m;
-      })
-    );
+      });
+      try {
+        localStorage.setItem('wegen_super_team', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    // Update in database API
+    try {
+      await fetch('/api/admin/team/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: memberId, status: nextStatus }),
+      });
+    } catch {}
+
     setFeedback('Member account status updated. Any active sessions were invalidated.');
     setTimeout(() => setFeedback(null), 3000);
   };

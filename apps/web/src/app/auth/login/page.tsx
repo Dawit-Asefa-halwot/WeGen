@@ -51,9 +51,83 @@ function LoginContent() {
 
     const normEmail = email.trim().toLowerCase();
 
-    // ── Check Custom Users (Donors, Campaign Creators, Charity Admins, Platform Admins/Staff) ──
+    // ── 1. Authenticate against Database / Backend First ──
+    try {
+      localStorage.setItem('ethiofund-user', JSON.stringify({ email: normEmail }));
+
+      const res = await apiRequest('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email: normEmail, password: password || 'Password123!' }),
+      });
+
+      if (res && res.success === false) {
+        setLoading(false);
+        setErrorMsg(res.message || 'Invalid email or password.');
+        return;
+      }
+
+      if (res && res.success && res.data) {
+        setLoading(false);
+        const u = res.data.user;
+        const token = res.data.tokens?.accessToken || `token-${u.id}`;
+        setAuth(u, token);
+
+        localStorage.setItem(
+          'ethiofund-user',
+          JSON.stringify({
+            id: u.id,
+            email: u.email,
+            name: `${u.firstName || ''} ${u.lastName || ''}`.trim(),
+            roles: u.roles,
+            orgSlug: u.organization?.slug,
+          })
+        );
+
+        if (u.roles.includes('SUPER_ADMIN')) {
+          router.push('/super');
+          return;
+        }
+        if (u.roles.includes('STAFF')) {
+          router.push('/staff');
+          return;
+        }
+        if (u.roles.includes('ADMIN')) {
+          router.push('/admin');
+          return;
+        }
+        if (u.roles.includes('ORGANIZATION_ADMIN') || u.roles.includes('ORGANIZATION_MEMBER')) {
+          const orgSlug = u.organization?.slug || 'hope-ethiopia';
+          router.push(`/org/${orgSlug}`);
+          return;
+        }
+        if (u.roles.includes('DONOR')) {
+          localStorage.setItem('ethiofund-donor', JSON.stringify({ name: `${u.firstName || ''} ${u.lastName || ''}`.trim() }));
+          router.push('/dashboard/giving');
+          return;
+        }
+        router.push(nextUrl || '/dashboard');
+        return;
+      }
+    } catch (apiErr: any) {
+      console.warn('API authentication attempted, falling back to local credentials if offline:', apiErr);
+    }
+
+    // ── 2. Check Custom Users (Offline/Mock Fallback) ──
     const customUser = authenticateCustomUser(normEmail, password);
     if (customUser) {
+      // Check if suspended in localStorage team
+      try {
+        const storedTeam = localStorage.getItem('wegen_super_team');
+        if (storedTeam) {
+          const list = JSON.parse(storedTeam);
+          const found = list.find((m: any) => m.email?.toLowerCase() === normEmail);
+          if (found && found.status === 'Suspended') {
+            setLoading(false);
+            setErrorMsg('This account has been suspended by the platform administrator');
+            return;
+          }
+        }
+      } catch {}
       const isOrgUser = customUser.role === 'ORGANIZATION_ADMIN' || customUser.role === 'ORGANIZATION_MEMBER';
       const isDonor = customUser.role === 'DONOR';
       const isAdmin = customUser.role === 'ADMIN';
@@ -210,105 +284,8 @@ function LoginContent() {
       return;
     }
 
-    try {
-      localStorage.setItem('ethiofund-user', JSON.stringify({ email: email.trim() }));
-
-      const res = await apiRequest('/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ email: email.trim(), password: password || 'Password123!' }),
-      });
-
-      setLoading(false);
-
-      if (res.success && res.data) {
-        const u = res.data.user;
-        setAuth(u, res.data.tokens.accessToken);
-
-        // Store user and profile details
-        localStorage.setItem(
-          'ethiofund-user',
-          JSON.stringify({
-            id: u.id,
-            email: u.email,
-            name: `${u.firstName || ''} ${u.lastName || ''}`.trim(),
-            roles: u.roles,
-            orgSlug: u.organization?.slug,
-          })
-        );
-
-        if (u.roles.includes('SUPER_ADMIN')) {
-          router.push('/super');
-          return;
-        }
-        if (u.roles.includes('STAFF')) {
-          router.push('/staff');
-          return;
-        }
-        if (u.roles.includes('ADMIN')) {
-          router.push('/admin');
-          return;
-        }
-        if (u.roles.includes('ORGANIZATION_ADMIN') || u.roles.includes('ORGANIZATION_MEMBER')) {
-          const orgSlug = u.organization?.slug || 'hope-ethiopia';
-          router.push(`/org/${orgSlug}`);
-          return;
-        }
-        if (u.roles.includes('DONOR')) {
-          localStorage.setItem('ethiofund-donor', JSON.stringify({ name: `${u.firstName || ''} ${u.lastName || ''}`.trim() }));
-          router.push('/dashboard/giving');
-          return;
-        }
-        if (u.roles.includes('FUNDRAISER')) {
-          router.push('/dashboard');
-          return;
-        }
-      } else {
-        // Inspect whether previously stored profile was a donor
-        let isExistingDonor = false;
-        try {
-          const stored = localStorage.getItem('ethiofund-user');
-          if (stored) {
-            const u = JSON.parse(stored);
-            if (u.role === 'DONOR') isExistingDonor = true;
-          }
-        } catch {}
-
-        setAuth(
-          {
-            id: 'u1',
-            email: email.trim(),
-            firstName: email.split('@')[0],
-            lastName: isExistingDonor ? 'Donor' : 'User',
-            roles: isExistingDonor ? ['DONOR', 'USER'] : ['FUNDRAISER'],
-            isEmailVerified: true,
-          },
-          'demo-access-token'
-        );
-
-        if (isExistingDonor) {
-          router.push('/dashboard/giving');
-          return;
-        }
-      }
-
-      router.push(nextUrl || '/dashboard');
-    } catch {
-      setLoading(false);
-      let isExistingDonor = false;
-      try {
-        const stored = localStorage.getItem('ethiofund-user');
-        if (stored) {
-          const u = JSON.parse(stored);
-          if (u.role === 'DONOR') isExistingDonor = true;
-        }
-      } catch {}
-
-      if (isExistingDonor) {
-        router.push('/dashboard/giving');
-      } else {
-        router.push(nextUrl || '/dashboard');
-      }
-    }
+    setLoading(false);
+    setErrorMsg('Invalid email or password.');
   };
 
   const handleSocialClick = (provider: string) => {

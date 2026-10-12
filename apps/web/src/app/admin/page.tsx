@@ -271,11 +271,7 @@ export default function AdminPage() {
   ]);
 
   // Super Admin Team state (with password support)
-  const [teamMembers, setTeamMembers] = useState([
-    { id: 'tm-1', name: 'Dawit Asefa (Platform Owner)', email: 'owner@wegen.et', role: 'SUPER_ADMIN', status: 'Active', lastActive: 'Just now' },
-    { id: 'tm-2', name: 'Kalkidan Mengistu', email: 'kalkidan@wegen.et', role: 'ADMIN', status: 'Active', lastActive: '2 hours ago' },
-    { id: 'tm-3', name: 'Selamawit Bekele', email: 'selam@wegen.et', role: 'STAFF', status: 'Active', lastActive: '10 mins ago' },
-  ]);
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteName, setInviteName] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
@@ -317,8 +313,39 @@ export default function AdminPage() {
   const [reasonInput, setReasonInput] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
+  const fetchTeamMembers = async () => {
+    try {
+      const res = await fetch('/api/admin/team', { cache: 'no-store' });
+      if (res.ok) {
+        const json = await res.json();
+        const list = json?.data || json;
+        if (Array.isArray(list) && list.length > 0) {
+          setTeamMembers(list);
+          try {
+            localStorage.setItem('wegen_super_team', JSON.stringify(list));
+          } catch {}
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('Could not load team from /api/admin/team:', e);
+    }
+
+    try {
+      const stored = localStorage.getItem('wegen_super_team');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setTeamMembers(parsed);
+        }
+      }
+    } catch {}
+  };
+
   // Load from localStorage
   useEffect(() => {
+    fetchTeamMembers();
+
     try {
       const saved = localStorage.getItem('ethiofund-admin') || localStorage.getItem('wegen-admin');
       if (saved) {
@@ -879,7 +906,7 @@ export default function AdminPage() {
         }
       `}</style>
 
-      <div className="admin-root">
+      <div className="admin-root" suppressHydrationWarning>
         <div className="app-layout">
           
           {/* SIDEBAR NAVIGATION */}
@@ -2617,9 +2644,22 @@ export default function AdminPage() {
                             ) : (
                               <select
                                 value={m.role}
-                                onChange={(e) => {
+                                onChange={async (e) => {
                                   const nextRole = e.target.value as 'ADMIN' | 'STAFF';
-                                  setTeamMembers(prev => prev.map(item => item.id === m.id ? { ...item, role: nextRole } : item));
+                                  setTeamMembers(prev => {
+                                    const updated = prev.map(item => item.id === m.id ? { ...item, role: nextRole } : item);
+                                    try { localStorage.setItem('wegen_super_team', JSON.stringify(updated)); } catch {}
+                                    return updated;
+                                  });
+                                  try {
+                                    await fetch('/api/admin/team/update', {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ id: m.id, role: nextRole }),
+                                    });
+                                  } catch (err) {
+                                    console.warn('Failed to update role in DB:', err);
+                                  }
                                   setSuperFeedback(`Role for ${m.name} changed to ${nextRole}. Logged to audit log.`);
                                   setTimeout(() => setSuperFeedback(null), 3000);
                                 }}
@@ -2638,9 +2678,22 @@ export default function AdminPage() {
                             {m.role !== 'SUPER_ADMIN' ? (
                               <button
                                 type="button"
-                                onClick={() => {
+                                onClick={async () => {
                                   const nextStatus = m.status === 'Suspended' ? 'Active' : 'Suspended';
-                                  setTeamMembers(prev => prev.map(item => item.id === m.id ? { ...item, status: nextStatus } : item));
+                                  setTeamMembers(prev => {
+                                    const updated = prev.map(item => item.id === m.id ? { ...item, status: nextStatus } : item);
+                                    try { localStorage.setItem('wegen_super_team', JSON.stringify(updated)); } catch {}
+                                    return updated;
+                                  });
+                                  try {
+                                    await fetch('/api/admin/team/update', {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ id: m.id, status: nextStatus }),
+                                    });
+                                  } catch (err) {
+                                    console.warn('Failed to update status in DB:', err);
+                                  }
                                   setSuperFeedback(`${m.name} is now ${nextStatus}. Sessions invalidated.`);
                                   setTimeout(() => setSuperFeedback(null), 3000);
                                 }}
@@ -2704,26 +2757,56 @@ export default function AdminPage() {
                       </div>
 
                       <form
-                        onSubmit={(e) => {
+                        onSubmit={async (e) => {
                           e.preventDefault();
                           if (!inviteName.trim() || !inviteEmail.trim() || !invitePassword.trim()) return;
 
-                          const newMember = {
-                            id: `tm-${Date.now()}`,
-                            name: inviteName.trim(),
-                            email: inviteEmail.trim(),
-                            role: inviteRole,
-                            status: 'Active' as const,
-                            lastActive: 'Active (Credentials created)',
-                          };
+                          const email = inviteEmail.trim().toLowerCase();
+                          const name = inviteName.trim();
+                          const pwd = invitePassword.trim();
+                          const role = inviteRole;
 
-                          setTeamMembers(prev => [...prev, newMember]);
-                          setShowInviteModal(false);
-                          setInviteName('');
-                          setInviteEmail('');
-                          setInvitePassword('');
-                          setSuperFeedback(`Team member ${newMember.name} added with role ${newMember.role}. They can sign in immediately using their email and password.`);
-                          setTimeout(() => setSuperFeedback(null), 5000);
+                          try {
+                            const res = await fetch('/api/admin/team', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                name,
+                                email,
+                                phone: '0911000000',
+                                password: pwd,
+                                role,
+                              }),
+                            });
+
+                            const json = await res.json();
+                            if (!res.ok || json?.success === false) {
+                              setSuperFeedback(`Database Error: ${json?.message || 'Failed to save member'}`);
+                              return;
+                            }
+
+                            // Also save to offline user store as backup
+                            try {
+                              const { saveCustomUser } = await import('@/lib/custom-users');
+                              saveCustomUser({
+                                name,
+                                email,
+                                phone: '0911000000',
+                                password: pwd,
+                                role,
+                              });
+                            } catch {}
+
+                            await fetchTeamMembers();
+                            setShowInviteModal(false);
+                            setInviteName('');
+                            setInviteEmail('');
+                            setInvitePassword('');
+                            setSuperFeedback(`Team member ${name} (${email}) saved to database! They can sign in immediately at /auth/login.`);
+                            setTimeout(() => setSuperFeedback(null), 6000);
+                          } catch (err: any) {
+                            setSuperFeedback(`Network error saving team member: ${err?.message || 'Error'}`);
+                          }
                         }}
                         className="space-y-3"
                       >

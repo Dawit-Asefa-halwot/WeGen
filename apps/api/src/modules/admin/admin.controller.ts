@@ -84,4 +84,23 @@ export class AdminController {
   async getAuditLogs(@Query('limit') limit?: number) {
     return this.adminService.getAuditLogs(limit ? Number(limit) : 50);
   }
+
+  @Get('team')
+  async getTeam() {
+    return this.adminService.getTeamMembers();
+  }
+
+  @Post('team')
+  async createTeamMember(@Body() body: { name: string; email: string; phone: string; password: string; role: 'ADMIN' | 'STAFF' }) {
+    return this.adminService.createTeamMember(body);
+  }
+
+  @Post('team/:id/update')
+  async updateTeamMember(
+    @Query('id') queryId: string,
+    @Body() body: { id?: string; role?: 'ADMIN' | 'STAFF'; status?: 'Active' | 'Suspended' }
+  ) {
+    const targetId = body.id || queryId;
+    return this.adminService.updateTeamMember(targetId, body);
+  }
 }

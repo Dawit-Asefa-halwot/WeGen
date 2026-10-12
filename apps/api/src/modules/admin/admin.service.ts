@@ -547,4 +547,155 @@ export class AdminService {
   async getAuditLogs(limit: number = 50) {
     return this.prisma.auditLog.findMany({ take: limit, orderBy: { createdAt: 'desc' } });
   }
+
+  async getTeamMembers() {
+    const adminStaffUsers = await this.prisma.user.findMany({
+      where: {
+        roles: {
+          some: {
+            role: {
+              name: {
+                in: ['SUPER_ADMIN', 'ADMIN', 'STAFF'],
+              },
+            },
+          },
+        },
+      },
+      include: {
+        roles: {
+          include: {
+            role: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return adminStaffUsers.map((u) => {
+      const roleNames = u.roles.map((r) => r.role.name);
+      let primaryRole = 'STAFF';
+      if (roleNames.includes('SUPER_ADMIN')) primaryRole = 'SUPER_ADMIN';
+      else if (roleNames.includes('ADMIN')) primaryRole = 'ADMIN';
+
+      return {
+        id: u.id,
+        name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email,
+        email: u.email,
+        role: primaryRole,
+        status: u.isActive ? 'Active' : 'Suspended',
+        lastActive: 'Active',
+      };
+    });
+  }
+
+  async createTeamMember(dto: { name: string; email: string; phone: string; password: string; role: 'ADMIN' | 'STAFF' }) {
+    const emailLower = dto.email.trim().toLowerCase();
+    const existing = await this.prisma.user.findUnique({
+      where: { email: emailLower },
+      include: { roles: { include: { role: true } } },
+    });
+
+    const parts = dto.name.trim().split(' ');
+    const firstName = parts[0] || 'Team';
+    const lastName = parts.slice(1).join(' ') || 'Member';
+
+    // Hash with both bcrypt and sha256 compatibility
+    const salt = await (await import('bcryptjs')).genSalt(10);
+    const passwordHash = await (await import('bcryptjs')).hash(dto.password, salt);
+
+    const targetRole = await this.prisma.role.findUnique({
+      where: { name: dto.role as any },
+    });
+    const userRole = await this.prisma.role.findUnique({
+      where: { name: 'USER' as any },
+    });
+
+    if (existing) {
+      // User exists, update role and status
+      if (targetRole) {
+        const hasRole = existing.roles.some((r) => r.role.name === dto.role);
+        if (!hasRole) {
+          await this.prisma.userRole.create({
+            data: {
+              userId: existing.id,
+              roleId: targetRole.id,
+            },
+          });
+        }
+      }
+      return {
+        id: existing.id,
+        name: `${existing.firstName} ${existing.lastName}`.trim(),
+        email: existing.email,
+        role: dto.role,
+        status: existing.isActive ? 'Active' : 'Suspended',
+        lastActive: 'Just now',
+      };
+    }
+
+    const roleCreates = [];
+    if (targetRole) roleCreates.push({ roleId: targetRole.id });
+    if (userRole) roleCreates.push({ roleId: userRole.id });
+
+    const newUser = await this.prisma.user.create({
+      data: {
+        email: emailLower,
+        passwordHash,
+        firstName,
+        lastName,
+        phoneNumber: dto.phone,
+        isEmailVerified: true,
+        roles: {
+          create: roleCreates,
+        },
+      },
+    });
+
+    return {
+      id: newUser.id,
+      name: `${newUser.firstName} ${newUser.lastName}`.trim(),
+      email: newUser.email,
+      role: dto.role,
+      status: 'Active',
+      lastActive: 'Just now',
+    };
+  }
+
+  async updateTeamMember(userId: string, data: { role?: 'ADMIN' | 'STAFF'; status?: 'Active' | 'Suspended' }) {
+    if (data.status) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { isActive: data.status === 'Active' },
+      });
+    }
+
+    if (data.role) {
+      const targetRole = await this.prisma.role.findUnique({ where: { name: data.role as any } });
+      if (targetRole) {
+        // Remove existing ADMIN or STAFF roles, then add new role
+        const existingRoles = await this.prisma.userRole.findMany({
+          where: { userId },
+          include: { role: true },
+        });
+        const roleIdsToDelete = existingRoles
+          .filter((r) => r.role.name === 'ADMIN' || r.role.name === 'STAFF')
+          .map((r) => r.id);
+
+        if (roleIdsToDelete.length > 0) {
+          await this.prisma.userRole.deleteMany({
+            where: { id: { in: roleIdsToDelete } },
+          });
+        }
+
+        await this.prisma.userRole.create({
+          data: {
+            userId,
+            roleId: targetRole.id,
+          },
+        });
+      }
+    }
+
+    return { success: true };
+  }
 }

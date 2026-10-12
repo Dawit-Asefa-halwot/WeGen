@@ -21,10 +21,50 @@ export async function apiRequest<T = any>(
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      headers: reqHeaders,
-      ...customConfig,
-    });
+    let response: Response;
+    
+    // For admin and auth endpoints in the web app, call Next.js /api routes directly
+    const preferInternal = endpoint.startsWith('/admin') || endpoint.startsWith('/auth');
+
+    if (preferInternal) {
+      try {
+        response = await fetch(`/api${endpoint}`, {
+          headers: reqHeaders,
+          ...customConfig,
+        });
+        if (!response.ok && (response.status === 404 || response.status === 502)) {
+          // If Next route doesn't handle it, try NestJS
+          response = await fetch(`${API_BASE_URL}${endpoint}`, {
+            headers: reqHeaders,
+            ...customConfig,
+          });
+        }
+      } catch {
+        response = await fetch(`${API_BASE_URL}${endpoint}`, {
+          headers: reqHeaders,
+          ...customConfig,
+        });
+      }
+    } else {
+      try {
+        response = await fetch(`${API_BASE_URL}${endpoint}`, {
+          headers: reqHeaders,
+          ...customConfig,
+        });
+        if (!response.ok && (response.status === 404 || response.status === 502 || response.status === 503)) {
+          const nextApiRes = await fetch(`/api${endpoint}`, {
+            headers: reqHeaders,
+            ...customConfig,
+          });
+          if (nextApiRes.ok) response = nextApiRes;
+        }
+      } catch {
+        response = await fetch(`/api${endpoint}`, {
+          headers: reqHeaders,
+          ...customConfig,
+        });
+      }
+    }
 
     const data = await response.json();
 
