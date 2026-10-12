@@ -563,8 +563,11 @@ export default function AdminPage() {
           background: var(--soft);
         }
         .sb-btn.on {
-          background: var(--lime);
-          font-weight: 600;
+          background: var(--lime) !important;
+          color: var(--ink) !important;
+          font-weight: 700;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+          border: 1px solid var(--lime-deep);
         }
         .sb-btn b {
           background: var(--ink);
