@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { LanguageProvider } from '../lib/language-context';
 
 export const metadata: Metadata = {
   title: 'Ethio Fund / WeGen - Verified Fundraising for Ethiopia You Can Trust',
@@ -39,7 +40,9 @@ export default function RootLayout({
         />
       </head>
       <body className="h-full bg-[#FFFFFF] text-[#1A1A1A] antialiased selection:bg-[#CCF88E] selection:text-[#1A1A1A]">
-        {children}
+        <LanguageProvider>
+          {children}
+        </LanguageProvider>
       </body>
     </html>
   );

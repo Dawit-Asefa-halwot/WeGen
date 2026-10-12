@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { PHOTOS } from '../data/campaigns';
 import AttentionPopup from '../components/AttentionPopup';
+import { useLanguage } from '../lib/language-context';
+import { LanguageSwitcher } from '../components/LanguageSwitcher';
 
 const GIFTS = [
   { name: 'Selamawit K.', amount: 1500 },
@@ -18,6 +20,7 @@ const GIFTS = [
 
 export default function LandingPage() {
   const router = useRouter();
+  const { t, language } = useLanguage();
 
   // Header & Navigation States
   const [isHeaderSm, setIsHeaderSm] = useState(false);
@@ -301,13 +304,13 @@ export default function LandingPage() {
           backdrop-filter: blur(8px);
           border-bottom: 1px solid var(--line);
           z-index: 60;
-          --hh: 120px;
-          --hl: 104px;
+          --hh: 136px;
+          --hl: 122px;
           transition: height 0.3s;
         }
         header.sm {
-          --hh: 84px;
-          --hl: 72px;
+          --hh: 92px;
+          --hl: 80px;
         }
         .brand {
           display: flex;
@@ -320,12 +323,12 @@ export default function LandingPage() {
           line-height: 1.1;
         }
         .lg {
-          --lh: 104px;
+          --lh: 122px;
           display: flex;
           align-items: center;
           justify-content: center;
           height: var(--lh);
-          width: calc(var(--lh) * 1.45);
+          width: calc(var(--lh) * 1.55);
           transition: width 0.3s, height 0.3s;
         }
         .lg img {
@@ -350,11 +353,11 @@ export default function LandingPage() {
         .hl, .hr {
           display: flex;
           align-items: center;
-          gap: 4px;
+          gap: 6px;
         }
         .hr {
           justify-content: flex-end;
-          gap: 8px;
+          gap: 10px;
         }
         .mi {
           position: relative;
@@ -1268,7 +1271,8 @@ export default function LandingPage() {
           align-items: center;
         }
         footer .lg {
-          --lh: 92px;
+          --lh: 122px;
+          width: calc(var(--lh) * 1.55);
         }
         footer nav {
           display: flex;
@@ -1416,7 +1420,7 @@ export default function LandingPage() {
                 <circle cx="11" cy="11" r="7" />
                 <path d="M20 20l-3.5-3.5" />
               </svg>
-              Search
+              {t('nav.search')}
             </Link>
 
             {/* Donate Dropdown */}
@@ -1431,27 +1435,27 @@ export default function LandingPage() {
                   setOpenDropdown(openDropdown === 'donate' ? null : 'donate');
                 }}
               >
-                Donate
+                {t('nav.donate')}
                 <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true">
                   <path d="M1 3l4 4 4-4z" />
                 </svg>
               </button>
               <div className="dd" role="menu">
                 <Link role="menuitem" href="/discover" onClick={() => setOpenDropdown(null)}>
-                  <b>Browse campaigns</b>
-                  <small>Find someone to help today</small>
+                  <b>{t('nav.browseCampaigns')}</b>
+                  <small>{t('nav.browseCampaignsSub')}</small>
                 </Link>
                 <a role="menuitem" href="#monthly" onClick={() => setOpenDropdown(null)}>
-                  <b>Give monthly</b>
-                  <small>From 10 Br a month</small>
+                  <b>{t('nav.giveMonthly')}</b>
+                  <small>{t('nav.giveMonthlySub')}</small>
                 </a>
                 <Link role="menuitem" href="/discover?type=organization" onClick={() => setOpenDropdown(null)}>
-                  <b>Charity organizations</b>
-                  <small>Support registered groups</small>
+                  <b>{t('nav.charityOrgs')}</b>
+                  <small>{t('nav.charityOrgsSub')}</small>
                 </Link>
                 <Link role="menuitem" href="/discover?type=verified" onClick={() => setOpenDropdown(null)}>
-                  <b>Verified persons</b>
-                  <small>Trusted public figures</small>
+                  <b>{t('nav.verifiedPersons')}</b>
+                  <small>{t('nav.verifiedPersonsSub')}</small>
                 </Link>
               </div>
             </div>
@@ -1468,27 +1472,27 @@ export default function LandingPage() {
                   setOpenDropdown(openDropdown === 'fundraise' ? null : 'fundraise');
                 }}
               >
-                Fundraise
+                {t('nav.fundraise')}
                 <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true">
                   <path d="M1 3l4 4 4-4z" />
                 </svg>
               </button>
               <div className="dd" role="menu">
                 <Link role="menuitem" href="/dashboard/campaigns/new" onClick={() => setOpenDropdown(null)}>
-                  <b>Start a campaign</b>
-                  <small>Raise for yourself</small>
+                  <b>{t('nav.startPersonal')}</b>
+                  <small>{t('nav.startPersonalSub')}</small>
                 </Link>
                 <Link role="menuitem" href="/dashboard/campaigns/new?type=referral" onClick={() => setOpenDropdown(null)}>
-                  <b>Raise for someone else</b>
-                  <small>Refer a person in need</small>
+                  <b>{t('nav.referSomeone')}</b>
+                  <small>{t('nav.referSomeoneSub')}</small>
                 </Link>
                 <Link role="menuitem" href="/dashboard/campaigns/charity-setup" onClick={() => setOpenDropdown(null)}>
-                  <b>Register a charity</b>
-                  <small>Run campaigns with your team</small>
+                  <b>{t('nav.registerOrg')}</b>
+                  <small>{t('nav.registerOrgSub')}</small>
                 </Link>
                 <a role="menuitem" href="#trust" onClick={() => setOpenDropdown(null)}>
-                  <b>How it works</b>
-                  <small>Verification and withdrawals</small>
+                  <b>{t('nav.howItWorks')}</b>
+                  <small>{t('nav.howItWorksSub')}</small>
                 </a>
               </div>
             </div>
@@ -1503,6 +1507,9 @@ export default function LandingPage() {
 
           {/* Right Header Navigation */}
           <div className="hr">
+            {/* Language Switcher: After logo and before About */}
+            <LanguageSwitcher variant="header" className="dsk" />
+
             <div className={`mi dsk ${openDropdown === 'about' ? 'open' : ''}`}>
               <button
                 className="mb"
@@ -1514,32 +1521,35 @@ export default function LandingPage() {
                   setOpenDropdown(openDropdown === 'about' ? null : 'about');
                 }}
               >
-                About
+                {t('nav.about')}
                 <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true">
                   <path d="M1 3l4 4 4-4z" />
                 </svg>
               </button>
               <div className="dd" role="menu">
                 <Link role="menuitem" href="/about" onClick={() => setOpenDropdown(null)}>
-                  <b>Our story</b>
+                  <b>{t('nav.aboutWeGen')}</b>
+                  <small>{t('nav.aboutWeGenSub')}</small>
                 </Link>
                 <a role="menuitem" href="#trust" onClick={() => setOpenDropdown(null)}>
-                  <b>Trust and verification</b>
+                  <b>{t('nav.trustSafety')}</b>
+                  <small>{t('nav.trustSafetySub')}</small>
                 </a>
                 <Link role="menuitem" href="/how-it-works" onClick={() => setOpenDropdown(null)}>
-                  <b>Fees</b>
+                  <b>{t('nav.pricingFees')}</b>
+                  <small>{t('nav.pricingFeesSub')}</small>
                 </Link>
                 <Link role="menuitem" href="/how-it-works" onClick={() => setOpenDropdown(null)}>
-                  <b>Help center</b>
+                  <b>{t('footer.help')}</b>
                 </Link>
               </div>
             </div>
 
             <Link className="mb dsk" href="/auth/login">
-              Sign in
+              {t('nav.signIn')}
             </Link>
             <Link className="btn o s" href="/dashboard/campaigns/new">
-              Start<span className="x"> a campaign</span>
+              {t('nav.startCampaign')}
             </Link>
           </div>
         </div>
@@ -1576,15 +1586,20 @@ export default function LandingPage() {
 
         {/* Mobile Menu Drawer */}
         <div className="mm" id="mm" hidden={!mobileMenuOpen}>
+          {/* Mobile Language Switcher */}
+          <div style={{ marginTop: '8px', marginBottom: '16px' }}>
+            <LanguageSwitcher variant="mobile" />
+          </div>
+
           <form onSubmit={handleSearchSubmit}>
-            <label className="sl" style={{ marginTop: '12px' }}>
+            <label className="sl">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
                 <circle cx="11" cy="11" r="7" />
                 <path d="M20 20l-3.5-3.5" />
               </svg>
               <input
                 type="search"
-                placeholder="Search"
+                placeholder={t('nav.search')}
                 aria-label="Search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -1592,26 +1607,25 @@ export default function LandingPage() {
             </label>
           </form>
 
-          <p>Donate</p>
-          <Link href="/discover" onClick={() => setMobileMenuOpen(false)}>Browse campaigns</Link>
-          <a href="#monthly" onClick={() => setMobileMenuOpen(false)}>Give monthly</a>
-          <Link href="/discover?type=organization" onClick={() => setMobileMenuOpen(false)}>Charity organizations</Link>
-          <Link href="/discover?type=verified" onClick={() => setMobileMenuOpen(false)}>Verified persons</Link>
+          <p>{t('nav.donate')}</p>
+          <Link href="/discover" onClick={() => setMobileMenuOpen(false)}>{t('nav.browseCampaigns')}</Link>
+          <a href="#monthly" onClick={() => setMobileMenuOpen(false)}>{t('nav.giveMonthly')}</a>
+          <Link href="/discover?type=organization" onClick={() => setMobileMenuOpen(false)}>{t('nav.charityOrgs')}</Link>
+          <Link href="/discover?type=verified" onClick={() => setMobileMenuOpen(false)}>{t('nav.verifiedPersons')}</Link>
 
-          <p>Fundraise</p>
-          <Link href="/dashboard/campaigns/new" onClick={() => setMobileMenuOpen(false)}>Start a campaign</Link>
-          <Link href="/dashboard/campaigns/new?type=referral" onClick={() => setMobileMenuOpen(false)}>Raise for someone else</Link>
-          <Link href="/dashboard/campaigns/charity-setup" onClick={() => setMobileMenuOpen(false)}>Register a charity</Link>
-          <a href="#trust" onClick={() => setMobileMenuOpen(false)}>How it works</a>
+          <p>{t('nav.fundraise')}</p>
+          <Link href="/dashboard/campaigns/new" onClick={() => setMobileMenuOpen(false)}>{t('nav.startPersonal')}</Link>
+          <Link href="/dashboard/campaigns/new?type=referral" onClick={() => setMobileMenuOpen(false)}>{t('nav.referSomeone')}</Link>
+          <Link href="/dashboard/campaigns/charity-setup" onClick={() => setMobileMenuOpen(false)}>{t('nav.registerOrg')}</Link>
+          <a href="#trust" onClick={() => setMobileMenuOpen(false)}>{t('nav.howItWorks')}</a>
 
-          <p>About</p>
-          <Link href="/about" onClick={() => setMobileMenuOpen(false)}>Our story</Link>
-          <a href="#trust" onClick={() => setMobileMenuOpen(false)}>Trust and verification</a>
-          <Link href="/how-it-works" onClick={() => setMobileMenuOpen(false)}>Fees</Link>
-          <Link href="/how-it-works" onClick={() => setMobileMenuOpen(false)}>Help center</Link>
-          <Link href="/auth/login" onClick={() => setMobileMenuOpen(false)}>Sign in</Link>
+          <p>{t('nav.about')}</p>
+          <Link href="/about" onClick={() => setMobileMenuOpen(false)}>{t('nav.aboutWeGen')}</Link>
+          <a href="#trust" onClick={() => setMobileMenuOpen(false)}>{t('nav.trustSafety')}</a>
+          <Link href="/how-it-works" onClick={() => setMobileMenuOpen(false)}>{t('nav.pricingFees')}</Link>
+          <Link href="/auth/login" onClick={() => setMobileMenuOpen(false)}>{t('nav.signIn')}</Link>
           <Link className="btn" href="/dashboard/campaigns/new" onClick={() => setMobileMenuOpen(false)}>
-            Start a campaign
+            {t('nav.startCampaign')}
           </Link>
         </div>
       </header>
