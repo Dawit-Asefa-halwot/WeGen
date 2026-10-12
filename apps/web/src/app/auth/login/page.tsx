@@ -6,6 +6,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { apiRequest } from '../../../lib/api-client';
 import { useAuthStore } from '../../../lib/auth-store';
 
+import { authenticateCustomUser, findCustomUserByEmail } from '../../../lib/custom-users';
+
 // ── Dedicated role credentials (demo / prototype) ──
 const SUPER_ADMIN_EMAIL = 'superadmin@wegen.et';
 const SUPER_ADMIN_PW    = 'SuperAdmin@2026';
@@ -48,6 +50,56 @@ function LoginContent() {
     setLoading(true);
 
     const normEmail = email.trim().toLowerCase();
+
+    // ── Check Custom Users (Campaign Creators & Charity Org Admins/Members) ──
+    const customUser = authenticateCustomUser(normEmail, password);
+    if (customUser) {
+      const isOrgUser = customUser.role === 'ORGANIZATION_ADMIN' || customUser.role === 'ORGANIZATION_MEMBER';
+      const nameParts = (customUser.name || 'User').split(' ');
+      const firstName = nameParts[0] || 'User';
+      const lastName = nameParts.slice(1).join(' ') || (isOrgUser ? 'Admin' : 'Fundraiser');
+
+      setAuth(
+        {
+          id: customUser.id,
+          email: customUser.email,
+          firstName,
+          lastName,
+          roles: isOrgUser ? ['ORGANIZATION_ADMIN', 'USER'] : ['FUNDRAISER', 'USER'],
+          isEmailVerified: true,
+        },
+        `token-${customUser.id}`
+      );
+
+      try {
+        localStorage.setItem(
+          'ethiofund-user',
+          JSON.stringify({
+            email: customUser.email,
+            name: customUser.name,
+            phone: customUser.phone,
+            role: customUser.role,
+            orgSlug: customUser.orgSlug,
+          })
+        );
+      } catch {}
+
+      setLoading(false);
+      if (isOrgUser) {
+        router.push(`/org/${customUser.orgSlug || 'hope-ethiopia'}`);
+      } else {
+        router.push(nextUrl || '/dashboard');
+      }
+      return;
+    }
+
+    // Check if email exists in custom users but password was incorrect
+    const userWithEmail = findCustomUserByEmail(normEmail);
+    if (userWithEmail) {
+      setLoading(false);
+      setErrorMsg('Incorrect password. Please verify your password and try again.');
+      return;
+    }
 
     // ── Check Super Admin credentials ──
     if (normEmail === SUPER_ADMIN_EMAIL && password === SUPER_ADMIN_PW) {

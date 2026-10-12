@@ -4,6 +4,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 
+import { saveCustomUser, getCustomUsers } from '../../../lib/custom-users';
+
 /* ─────────────────────────────────────────────────────
    Types
 ───────────────────────────────────────────────────── */
@@ -14,6 +16,8 @@ interface OrgSession {
   verified: boolean;
   bg: string;
   banner: string | null;
+  adminEmail?: string;
+  adminName?: string;
   isNew: boolean;
   plan: 'monthly' | 'yearly';
   planLabel: string;
@@ -26,7 +30,7 @@ interface OrgSession {
 
 interface Camp  { icon: string; title: string; raised: number; goal: number; }
 interface Don   { name: string; method: string; when: string; amt: string; }
-interface Member { initials: string; name: string; role: string; }
+interface Member { initials: string; name: string; role: string; email?: string; phone?: string; }
 
 /* ─────────────────────────────────────────────────────
    Helpers
@@ -115,6 +119,18 @@ export default function OrgDashboardPage() {
   const [activeNav, setActiveNav] = useState('Overview');
   const [welcomeDismissed, setWelcomeDismissed] = useState(false);
 
+  /* ── team state hooks (MUST be called unconditionally at top of component) ── */
+  const [teamList, setTeamList] = useState<Member[]>([]);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [memName, setMemName] = useState('');
+  const [memEmail, setMemEmail] = useState('');
+  const [memPhone, setMemPhone] = useState('');
+  const [memRole, setMemRole] = useState<'Admin' | 'Editor' | 'Finance'>('Admin');
+  const [memPassword, setMemPassword] = useState('');
+  const [memConfirm, setMemConfirm] = useState('');
+  const [memError, setMemError] = useState('');
+  const [memSuccess, setMemSuccess] = useState('');
+
   useEffect(() => {
     try {
       const raw = localStorage.getItem('ethiofund-org');
@@ -123,14 +139,35 @@ export default function OrgDashboardPage() {
     setReady(true);
   }, []);
 
-  if (!ready) return null; // avoid hydration flash
-
   /* ── derived identity from localStorage or slug fallback ── */
   const orgName     = org?.name     ?? slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
   const orgCategory = org?.category ?? 'Human Services';
   const orgLocation = org?.location ?? 'Addis Ababa';
   const orgVerified = org?.verified ?? false;
   const orgInitials = makeInitials(orgName);
+
+  /* ── mode: "new" org that just signed up, vs existing data ── */
+  const isNewOrg = org?.isNew !== false;      // default to new if no session
+
+  useEffect(() => {
+    try {
+      const savedTeam = localStorage.getItem(`ethiofund-org-team-${slug}`);
+      if (savedTeam) {
+        setTeamList(JSON.parse(savedTeam));
+      } else {
+        const defaultTeam: Member[] = isNewOrg
+          ? [{ initials: orgInitials, name: org?.adminName || orgName.split(' ').slice(0,2).join(' '), role: 'Owner · you', email: org?.adminEmail }]
+          : [
+              { initials: 'AT', name: 'Abebe Tadesse', role: 'Owner · you', email: 'abebe@wegen.et' },
+              { initials: 'MG', name: 'Marta Girma',   role: 'Admin',       email: 'marta@wegen.et' },
+              { initials: 'DK', name: 'Dawit Kebede',  role: 'Editor',      email: 'dawit@wegen.et' },
+            ];
+        setTeamList(defaultTeam);
+      }
+    } catch {}
+  }, [slug, isNewOrg, orgInitials, orgName, org]);
+
+  if (!ready) return null; // avoid hydration flash after all hooks are called
 
   /* ── plan & subscription ── */
   const planLabel  = org?.planLabel ?? 'Monthly';
@@ -141,9 +178,6 @@ export default function OrgDashboardPage() {
   const isUnlimited = planCap === 0;
   const postsUsed   = 0;                      // real usage from API in production
   const subPct      = isUnlimited ? 100 : 0;  // new account: 0 posts used
-
-  /* ── mode: "new" org that just signed up, vs existing data ── */
-  const isNewOrg = org?.isNew !== false;      // default to new if no session
 
   /* ── verification state ──
        new account:  not verified, no review yet → step 1 is "now"
@@ -182,14 +216,55 @@ export default function OrgDashboardPage() {
   const camps = isNewOrg ? [] : ACTIVE_CAMPS;
   const dons  = isNewOrg ? [] : ACTIVE_DONS;
 
-  /* ── team (owner only for new, full team for established) ── */
-  const team: Member[] = isNewOrg
-    ? [{ initials: orgInitials, name: orgName.split(' ').slice(0,2).join(' '), role: 'Owner · you' }]
-    : [
-        { initials: 'AT', name: 'Abebe Tadesse', role: 'Owner · you' },
-        { initials: 'MG', name: 'Marta Girma',   role: 'Admin' },
-        { initials: 'DK', name: 'Dawit Kebede',  role: 'Editor' },
-      ];
+  const handleSaveMember = (e: React.FormEvent) => {
+    e.preventDefault();
+    setMemError('');
+    setMemSuccess('');
+
+    if (!memName.trim()) { setMemError('Enter member name.'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(memEmail.trim())) { setMemError('Enter a valid email address.'); return; }
+    const cleanP = memPhone.replace(/[\s-]/g, '');
+    if (!/^(\+?251|0)[79]\d{8}$/.test(cleanP)) { setMemError('Enter a valid Ethiopian phone number (e.g. 0912345678).'); return; }
+    if (memPassword.length < 6) { setMemError('Password must be at least 6 characters.'); return; }
+    if (memPassword !== memConfirm) { setMemError('Passwords do not match.'); return; }
+
+    const newMemberUser = saveCustomUser({
+      name: memName.trim(),
+      email: memEmail.trim().toLowerCase(),
+      phone: cleanP,
+      password: memPassword,
+      role: memRole === 'Admin' ? 'ORGANIZATION_ADMIN' : 'ORGANIZATION_MEMBER',
+      orgSlug: slug,
+      orgName,
+    });
+
+    const updatedList: Member[] = [
+      ...teamList,
+      {
+        initials: makeInitials(memName.trim()),
+        name: memName.trim(),
+        role: memRole,
+        email: memEmail.trim().toLowerCase(),
+        phone: cleanP,
+      }
+    ];
+
+    setTeamList(updatedList);
+    try {
+      localStorage.setItem(`ethiofund-org-team-${slug}`, JSON.stringify(updatedList));
+    } catch {}
+
+    setMemSuccess(`Successfully added ${memName.trim()} as ${memRole}! They can now log in at /auth/login.`);
+    setMemName('');
+    setMemEmail('');
+    setMemPhone('');
+    setMemPassword('');
+    setMemConfirm('');
+    setTimeout(() => {
+      setShowInviteModal(false);
+      setMemSuccess('');
+    }, 1800);
+  };
 
   /* ── verification steps ── */
   const verSteps = [
@@ -467,29 +542,173 @@ export default function OrgDashboardPage() {
 
             {/* Team */}
             <section>
-              <h2 className="font-heading font-bold text-[19px] flex justify-between items-baseline gap-2.5 mb-1.5">
-                Team
-                <Link href="#" className="font-normal text-[14px] text-[#1A1A1A] hover:underline">Manage</Link>
-              </h2>
+              <div className="flex justify-between items-baseline gap-2.5 mb-1.5">
+                <h2 className="font-heading font-bold text-[19px] m-0">Team & Admins</h2>
+                <button
+                  type="button"
+                  onClick={() => setShowInviteModal(true)}
+                  className="font-normal text-[14px] text-[#1A1A1A] hover:underline bg-transparent border-0 cursor-pointer"
+                >
+                  + Add member
+                </button>
+              </div>
+              <p className="text-xs text-[#6E6E6E] mb-3">
+                Team members and admins can sign in to manage this organization only.
+              </p>
 
-              {team.map((m, i) => (
-                <div key={i} className="flex items-center gap-3 py-3 border-b border-[#EBEBEB] last:border-0">
-                  <div className="w-9 h-9 rounded-full bg-[#F6F6F6] grid place-items-center font-semibold text-[13px] shrink-0">{m.initials}</div>
-                  <div>
-                    <b className="block font-semibold text-[15px]">{m.name}</b>
-                    <small className="text-[#6E6E6E] text-[13px]">{m.role}</small>
+              {teamList.map((m, i) => (
+                <div key={i} className="flex items-center justify-between py-3 border-b border-[#EBEBEB] last:border-0">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-[#CCF88E] text-[#1A1A1A] font-bold text-[13px] grid place-items-center shrink-0">
+                      {m.initials}
+                    </div>
+                    <div>
+                      <b className="block font-semibold text-[15px]">{m.name}</b>
+                      <small className="text-[#6E6E6E] text-[12px] block">
+                        {m.role} {m.email ? `· ${m.email}` : ''}
+                      </small>
+                    </div>
                   </div>
+                  <span className="text-[11px] font-semibold bg-[#F6F6F6] text-[#1A1A1A] px-2.5 py-0.5 rounded-full border border-[#EBEBEB]">
+                    Can log in
+                  </span>
                 </div>
               ))}
 
-              <a href="#" className="inline-flex mt-3.5 font-semibold text-[14px] bg-white border-[1.5px] border-[#1A1A1A] rounded-full px-4 py-[7px] hover:bg-[#F6F6F6] transition-colors">
-                Invite teammate
-              </a>
+              <button
+                type="button"
+                onClick={() => setShowInviteModal(true)}
+                className="inline-flex mt-3.5 font-semibold text-[14px] bg-white border-[1.5px] border-[#1A1A1A] rounded-full px-4 py-[7px] hover:bg-[#F6F6F6] transition-colors cursor-pointer"
+              >
+                Add teammate / admin
+              </button>
             </section>
 
           </div>
         </div>
       </main>
+
+      {/* ── MODAL: ADD ORGANIZATION TEAM MEMBER / ADMIN ── */}
+      {showInviteModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-[28px] max-w-[480px] w-full p-6 sm:p-7 shadow-2xl relative">
+            <button
+              type="button"
+              onClick={() => { setShowInviteModal(false); setMemError(''); setMemSuccess(''); }}
+              className="absolute top-5 right-5 w-8 h-8 rounded-full grid place-items-center text-lg hover:bg-[#F6F6F6] border-0 cursor-pointer"
+            >
+              ✕
+            </button>
+
+            <h2 className="font-heading font-bold text-xl text-[#1A1A1A]">
+              Add Team Member or Admin
+            </h2>
+            <p className="text-xs text-[#6E6E6E] mt-1 mb-5">
+              Only for <b>{orgName}</b>. Once added, this person can log in to WeGen using their email and password to access this organization.
+            </p>
+
+            {memSuccess && (
+              <div className="bg-[#E8F8D5] border border-[#B6EA6C] text-[#1A1A1A] text-xs font-semibold p-3 rounded-xl mb-4">
+                ✓ {memSuccess}
+              </div>
+            )}
+
+            {memError && (
+              <div className="bg-[#FBE9E7] text-[#B3261E] text-xs font-semibold p-3 rounded-xl mb-4">
+                {memError}
+              </div>
+            )}
+
+            <form onSubmit={handleSaveMember} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-semibold text-[#6E6E6E] mb-1">Full Legal Name</label>
+                <input
+                  type="text"
+                  value={memName}
+                  onChange={e => setMemName(e.target.value)}
+                  placeholder="e.g. Marta Girma"
+                  className="w-full border border-[#cfcfcf] rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-[#1A1A1A]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[#6E6E6E] mb-1">Email Address</label>
+                <input
+                  type="email"
+                  value={memEmail}
+                  onChange={e => setMemEmail(e.target.value)}
+                  placeholder="marta@charity.et"
+                  className="w-full border border-[#cfcfcf] rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-[#1A1A1A]"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-[#6E6E6E] mb-1">Phone Number</label>
+                  <input
+                    type="tel"
+                    value={memPhone}
+                    onChange={e => setMemPhone(e.target.value)}
+                    placeholder="0911000000"
+                    className="w-full border border-[#cfcfcf] rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-[#1A1A1A]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-[#6E6E6E] mb-1">Role in Charity</label>
+                  <select
+                    value={memRole}
+                    onChange={e => setMemRole(e.target.value as any)}
+                    className="w-full border border-[#cfcfcf] rounded-xl px-3 py-2.5 text-sm outline-none bg-white cursor-pointer"
+                  >
+                    <option value="Admin">Admin (Full Control)</option>
+                    <option value="Editor">Editor (Campaigns)</option>
+                    <option value="Finance">Finance (Payouts)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-[#6E6E6E] mb-1">Login Password</label>
+                  <input
+                    type="password"
+                    value={memPassword}
+                    onChange={e => setMemPassword(e.target.value)}
+                    placeholder="Min 6 characters"
+                    className="w-full border border-[#cfcfcf] rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-[#1A1A1A]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-[#6E6E6E] mb-1">Confirm Password</label>
+                  <input
+                    type="password"
+                    value={memConfirm}
+                    onChange={e => setMemConfirm(e.target.value)}
+                    placeholder="Confirm password"
+                    className="w-full border border-[#cfcfcf] rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-[#1A1A1A]"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setShowInviteModal(false)}
+                  className="px-5 py-2.5 rounded-full border border-[#cfcfcf] text-xs font-semibold hover:bg-[#F6F6F6]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2.5 rounded-full bg-[#1A1A1A] hover:bg-black text-white text-xs font-semibold"
+                >
+                  Save Member & Enable Login
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

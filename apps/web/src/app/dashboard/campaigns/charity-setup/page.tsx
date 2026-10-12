@@ -4,12 +4,14 @@ import React, { useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { saveCustomUser } from "../../../../lib/custom-users";
+
 // ─── Data ───────────────────────────────────────────────────────────────────
 const ORGS = [
   { id: 1, n: "Hope Ethiopia",                   c: "Human Services",    l: "Addis Ababa",       v: true,  bg: "#CCF88E" },
-  { id: 2, n: "Selam Children'\''s Home",           c: "Child Welfare",     l: "Hawassa, Sidama",   v: true,  bg: "#1A1A1A" },
+  { id: 2, n: "Selam Children's Home",           c: "Child Welfare",     l: "Hawassa, Sidama",   v: true,  bg: "#1A1A1A" },
   { id: 3, n: "Gurage Clean Water Initiative",    c: "Water & Sanitation",l: "Wolkite, SNNP",     v: true,  bg: "#E8E8E8" },
-  { id: 4, n: "Addis Mothers'\'' Health Trust",     c: "Health",            l: "Addis Ababa",       v: false, bg: "#CCF88E" },
+  { id: 4, n: "Addis Mothers' Health Trust",     c: "Health",            l: "Addis Ababa",       v: false, bg: "#CCF88E" },
   { id: 5, n: "Bright Futures Education Fund",    c: "Education",         l: "Bahir Dar, Amhara", v: false, bg: "#E8E8E8" },
 ];
 
@@ -29,6 +31,14 @@ type Method = "telebirr" | "chapa" | "card";
 
 interface Org { id: number; n: string; c: string; l: string; v: boolean; bg: string }
 
+interface ExtraMember {
+  name: string;
+  email: string;
+  phone: string;
+  password: string;
+  role: "Admin" | "Editor" | "Finance";
+}
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 const fmt = (n: number) => n.toLocaleString("en-US");
 const initials = (name: string) =>
@@ -45,8 +55,8 @@ const META: Record<Step, { step: number; title: string; desc: string }> = {
   search: { step: 1, title: "Find your charity",    desc: "Search for your organization. Charities with a check mark have been verified by our team." },
   add:    { step: 1, title: "Add your organization",desc: "Tell us the basics. You can verify your organization later from your profile to earn the verified badge." },
   plan:   { step: 2, title: "Choose your plan",     desc: "A subscription lets your organization post campaigns and receive donations." },
-  pay:    { step: 3, title: "Payment",               desc: "Review your order and pay securely with Telebirr, Chapa or card." },
-  done:   { step: 4, title: "You'\''re all set",       desc: "" },
+  pay:    { step: 3, title: "Admin setup & Payment", desc: "Set up your charity login credentials and complete secure payment." },
+  done:   { step: 4, title: "You're all set",       desc: "" },
 };
 
 // ─── Logo Avatar ────────────────────────────────────────────────────────────
@@ -81,6 +91,24 @@ export default function CharitySetupPage() {
   const [bannerErr, setBannerErr] = useState("");
   const [authorized, setAuthorized] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Charity Admin credentials & Members
+  const [adminName, setAdminName] = useState("");
+  const [adminEmail, setAdminEmail] = useState("");
+  const [adminPhone, setAdminPhone] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
+  const [adminConfirm, setAdminConfirm] = useState("");
+  const [showAdminPw, setShowAdminPw] = useState(false);
+
+  // Additional members / admins for this charity
+  const [members, setMembers] = useState<ExtraMember[]>([]);
+  const [newMemName, setNewMemName] = useState("");
+  const [newMemEmail, setNewMemEmail] = useState("");
+  const [newMemPhone, setNewMemPhone] = useState("");
+  const [newMemRole, setNewMemRole] = useState<"Admin" | "Editor" | "Finance">("Admin");
+  const [newMemPassword, setNewMemPassword] = useState("");
+  const [showAddMember, setShowAddMember] = useState(false);
+  const [memberFormErr, setMemberFormErr] = useState("");
 
   // Plan & pay
   const [plan, setPlan]     = useState<Plan>("yearly");
@@ -123,30 +151,124 @@ export default function CharitySetupPage() {
     if (step === "pay")  { handlePay(); }
   };
 
+  const handleAddMember = () => {
+    setMemberFormErr("");
+    if (!newMemName.trim()) { setMemberFormErr("Enter the team member's full name."); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(newMemEmail.trim())) { setMemberFormErr("Enter a valid email address."); return; }
+    const cleanP = newMemPhone.replace(/[\s-]/g, "");
+    if (!/^(\+?251|0)[79]\d{8}$/.test(cleanP)) { setMemberFormErr("Enter a valid Ethiopian phone number (e.g. 0912345678)."); return; }
+    if (newMemPassword.length < 6) { setMemberFormErr("Password must be at least 6 characters."); return; }
+
+    setMembers(prev => [
+      ...prev,
+      {
+        name: newMemName.trim(),
+        email: newMemEmail.trim().toLowerCase(),
+        phone: cleanP,
+        role: newMemRole,
+        password: newMemPassword,
+      }
+    ]);
+    setNewMemName("");
+    setNewMemEmail("");
+    setNewMemPhone("");
+    setNewMemPassword("");
+    setShowAddMember(false);
+  };
+
   const handlePay = () => {
-    // Validation
+    // Validate Admin Account
+    if (!adminName.trim()) {
+      setPayError("Enter the organization administrator full name."); return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(adminEmail.trim())) {
+      setPayError("Enter a valid administrator email address."); return;
+    }
+    const cleanAdminPhone = adminPhone.replace(/[\s-]/g, "");
+    if (!/^(\+?251|0)[79]\d{8}$/.test(cleanAdminPhone)) {
+      setPayError("Enter a valid Ethiopian phone number for the administrator."); return;
+    }
+    if (adminPassword.length < 6) {
+      setPayError("Admin password must be at least 6 characters."); return;
+    }
+    if (adminPassword !== adminConfirm) {
+      setPayError("Admin passwords do not match."); return;
+    }
+
+    // Payment Validation
     if (method === "telebirr" && !/^(0?9|7)\d{8}$/.test(tel.replace(/\s/g, ""))) {
-      setPayError("Enter a valid Ethiopian mobile number."); return;
+      setPayError("Enter a valid Ethiopian mobile number for payment."); return;
     }
     if (method === "card" && (card.replace(/\s/g, "").length < 13 || !/^\d\d ?\/ ?\d\d$/.test(exp) || cvc.length < 3)) {
       setPayError("Check your card number, expiry and CVC."); return;
     }
     setPayError("");
     setBusy(true);
+
     setTimeout(() => {
-      // Persist org session → /org/[slug] reads this on mount
       if (selectedOrg && typeof window !== "undefined") {
+        const orgSlug = slugify(selectedOrg.n);
         const renewDate = new Date();
         plan === "yearly"
           ? renewDate.setFullYear(renewDate.getFullYear() + 1)
           : renewDate.setMonth(renewDate.getMonth() + 1);
+
+        // 1. Save Organization Admin User in Custom Users
+        saveCustomUser({
+          name: adminName.trim(),
+          email: adminEmail.trim().toLowerCase(),
+          phone: cleanAdminPhone,
+          password: adminPassword,
+          role: "ORGANIZATION_ADMIN",
+          orgSlug,
+          orgName: selectedOrg.n,
+        });
+
+        // 2. Save Added Members / Admins
+        const initialTeamList = [
+          {
+            initials: initials(adminName.trim()),
+            name: adminName.trim(),
+            role: "Owner · Admin",
+            email: adminEmail.trim().toLowerCase(),
+            phone: cleanAdminPhone,
+          }
+        ];
+
+        members.forEach(m => {
+          saveCustomUser({
+            name: m.name,
+            email: m.email,
+            phone: m.phone,
+            password: m.password,
+            role: m.role === "Admin" ? "ORGANIZATION_ADMIN" : "ORGANIZATION_MEMBER",
+            orgSlug,
+            orgName: selectedOrg.n,
+          });
+
+          initialTeamList.push({
+            initials: initials(m.name),
+            name: m.name,
+            role: m.role,
+            email: m.email,
+            phone: m.phone,
+          });
+        });
+
+        // Store team in localStorage for /org/[slug]
+        localStorage.setItem(`ethiofund-org-team-${orgSlug}`, JSON.stringify(initialTeamList));
+
+        // Persist org session
         localStorage.setItem("ethiofund-org", JSON.stringify({
           name:      selectedOrg.n,
+          slug:      orgSlug,
           category:  selectedOrg.c,
           location:  selectedOrg.l,
           verified:  selectedOrg.v,
           bg:        selectedOrg.bg,
           banner:    banner ?? null,
+          adminEmail: adminEmail.trim().toLowerCase(),
+          adminName:  adminName.trim(),
           isNew,
           plan,
           planLabel: PLANS[plan].label,
@@ -155,6 +277,14 @@ export default function CharitySetupPage() {
           cap:       plan === "monthly" ? 15 : 0,
           renews:    renewDate.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
           openedAt:  Date.now(),
+        }));
+
+        // Set active session for user
+        localStorage.setItem("ethiofund-user", JSON.stringify({
+          email: adminEmail.trim().toLowerCase(),
+          name: adminName.trim(),
+          role: "ORGANIZATION_ADMIN",
+          orgSlug,
         }));
       }
       setBusy(false);
@@ -407,6 +537,212 @@ export default function CharitySetupPage() {
                   </div>
                 </div>
 
+                {/* Organization Admin Account Setup */}
+                <div className="bg-[#F8F9FA] border border-[#E4E4E4] rounded-2xl p-5 mb-6 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-heading font-bold text-[17px] text-[#1A1A1A]">
+                        Organization Administrator Account
+                      </h3>
+                      <p className="text-[#6E6E6E] text-xs mt-0.5">
+                        These credentials will be used to log in and manage {selectedOrg.n}.
+                      </p>
+                    </div>
+                    <span className="text-[11px] font-semibold bg-[#CCF88E] text-[#1A1A1A] px-2.5 py-1 rounded-full">
+                      Required
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-[#6E6E6E] mb-1">
+                        Admin Full Name
+                      </label>
+                      <input
+                        type="text"
+                        value={adminName}
+                        onChange={(e) => setAdminName(e.target.value)}
+                        placeholder="e.g. Solomon Haile"
+                        className="w-full border border-[#cfcfcf] rounded-xl px-3.5 py-2.5 text-sm bg-white outline-none focus:border-[#1A1A1A]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-[#6E6E6E] mb-1">
+                        Admin Email
+                      </label>
+                      <input
+                        type="email"
+                        value={adminEmail}
+                        onChange={(e) => setAdminEmail(e.target.value)}
+                        placeholder="admin@charity.et"
+                        className="w-full border border-[#cfcfcf] rounded-xl px-3.5 py-2.5 text-sm bg-white outline-none focus:border-[#1A1A1A]"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-[#6E6E6E] mb-1">
+                      Admin Phone Number
+                    </label>
+                    <input
+                      type="tel"
+                      value={adminPhone}
+                      onChange={(e) => setAdminPhone(e.target.value)}
+                      placeholder="0911223344"
+                      className="w-full border border-[#cfcfcf] rounded-xl px-3.5 py-2.5 text-sm bg-white outline-none focus:border-[#1A1A1A]"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="relative">
+                      <label className="block text-xs font-semibold text-[#6E6E6E] mb-1">
+                        Login Password
+                      </label>
+                      <input
+                        type={showAdminPw ? 'text' : 'password'}
+                        value={adminPassword}
+                        onChange={(e) => setAdminPassword(e.target.value)}
+                        placeholder="At least 6 characters"
+                        className="w-full border border-[#cfcfcf] rounded-xl px-3.5 py-2.5 text-sm bg-white outline-none focus:border-[#1A1A1A] pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowAdminPw(!showAdminPw)}
+                        className="absolute right-3 top-8 text-xs text-[#6E6E6E] hover:text-[#1A1A1A]"
+                      >
+                        {showAdminPw ? 'Hide' : 'Show'}
+                      </button>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-[#6E6E6E] mb-1">
+                        Confirm Password
+                      </label>
+                      <input
+                        type={showAdminPw ? 'text' : 'password'}
+                        value={adminConfirm}
+                        onChange={(e) => setAdminConfirm(e.target.value)}
+                        placeholder="Re-enter password"
+                        className="w-full border border-[#cfcfcf] rounded-xl px-3.5 py-2.5 text-sm bg-white outline-none focus:border-[#1A1A1A]"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Organization Team Members Section */}
+                <div className="border border-[#E4E4E4] rounded-2xl p-5 mb-6 space-y-3 bg-white">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-heading font-bold text-[17px] text-[#1A1A1A]">
+                        Organization Members & Admins
+                      </h3>
+                      <p className="text-[#6E6E6E] text-xs">
+                        Add teammate admins or editors for this charity. They will also be able to log in.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddMember(!showAddMember)}
+                      className="text-xs font-semibold bg-[#F6F6F6] hover:bg-[#EBEBEB] text-[#1A1A1A] px-3 py-1.5 rounded-full transition-colors"
+                    >
+                      {showAddMember ? 'Close' : '+ Add member'}
+                    </button>
+                  </div>
+
+                  {/* Existing added members list */}
+                  {members.length > 0 && (
+                    <div className="divide-y divide-[#EBEBEB] border border-[#EBEBEB] rounded-xl overflow-hidden mt-2">
+                      {members.map((m, idx) => (
+                        <div key={idx} className="p-3 bg-[#FAFAFA] flex items-center justify-between text-xs">
+                          <div>
+                            <b className="text-[#1A1A1A] block">{m.name} ({m.role})</b>
+                            <span className="text-[#6E6E6E]">{m.email} · {m.phone}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setMembers(prev => prev.filter((_, i) => i !== idx))}
+                            className="text-[#B3261E] hover:underline"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Add Member Inline Drawer */}
+                  {showAddMember && (
+                    <div className="bg-[#F8F9FA] border border-[#EBEBEB] rounded-xl p-4 mt-3 space-y-3">
+                      <b className="text-xs text-[#1A1A1A] block">Add New Team Member / Admin</b>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <input
+                          type="text"
+                          placeholder="Member Full Name"
+                          value={newMemName}
+                          onChange={e => setNewMemName(e.target.value)}
+                          className="border border-[#cfcfcf] rounded-lg px-3 py-2 text-xs bg-white outline-none"
+                        />
+                        <input
+                          type="email"
+                          placeholder="Email Address"
+                          value={newMemEmail}
+                          onChange={e => setNewMemEmail(e.target.value)}
+                          className="border border-[#cfcfcf] rounded-lg px-3 py-2 text-xs bg-white outline-none"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <input
+                          type="tel"
+                          placeholder="Phone Number (09...)"
+                          value={newMemPhone}
+                          onChange={e => setNewMemPhone(e.target.value)}
+                          className="border border-[#cfcfcf] rounded-lg px-3 py-2 text-xs bg-white outline-none"
+                        />
+                        <select
+                          value={newMemRole}
+                          onChange={e => setNewMemRole(e.target.value as any)}
+                          className="border border-[#cfcfcf] rounded-lg px-3 py-2 text-xs bg-white outline-none cursor-pointer"
+                        >
+                          <option value="Admin">Admin (Full access)</option>
+                          <option value="Editor">Editor (Campaigns only)</option>
+                          <option value="Finance">Finance (Withdrawals)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <input
+                          type="password"
+                          placeholder="Create Member Login Password (min 6 chars)"
+                          value={newMemPassword}
+                          onChange={e => setNewMemPassword(e.target.value)}
+                          className="w-full border border-[#cfcfcf] rounded-lg px-3 py-2 text-xs bg-white outline-none"
+                        />
+                      </div>
+
+                      {memberFormErr && <p className="text-[#B3261E] text-xs">{memberFormErr}</p>}
+
+                      <div className="flex gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={handleAddMember}
+                          className="bg-[#1A1A1A] text-white text-xs font-semibold px-4 py-2 rounded-full"
+                        >
+                          Save & Add Member
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setShowAddMember(false); setMemberFormErr(""); }}
+                          className="border border-[#cfcfcf] text-xs px-3 py-2 rounded-full"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {/* Payment method */}
                 <span className="block text-[14px] font-semibold mb-3">Pay with</span>
                 <div className="grid grid-cols-3 gap-3 mb-5">
@@ -453,7 +789,7 @@ export default function CharitySetupPage() {
                     </div>
                   </div>
                 )}
-                {payError && <p className="text-[#B3261E] text-[14px] mt-3">{payError}</p>}
+                {payError && <p className="text-[#B3261E] text-[14px] mt-3 font-semibold">{payError}</p>}
               </div>
             )}
 
@@ -463,13 +799,18 @@ export default function CharitySetupPage() {
                 <div className="w-[68px] h-[68px] rounded-full bg-[#CCF88E] flex items-center justify-center mb-6">
                   <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#1A1A1A" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7"/></svg>
                 </div>
-                <h2 className="text-[30px] font-bold tracking-tight mb-5">
+                <h2 className="text-[30px] font-bold tracking-tight mb-2">
                   {isNew ? "Your organization account is open" : "Subscription renewed"}
                 </h2>
+                <p className="text-sm text-[#6E6E6E] mb-5">
+                  Your administrator and team credentials have been registered. You can now log in at /auth/login.
+                </p>
 
                 <div className="border-[1.5px] border-[#E4E4E4] rounded-2xl px-5 py-4 mb-5 space-y-1">
                   {[
                     ["Organization", selectedOrg.n],
+                    ["Admin Account", adminEmail || "Registered"],
+                    ["Team Members", `${1 + members.length} active`],
                     ["Plan",         p.label],
                     ["Campaign posts", p.posts.replace(" campaign posts","").replace("Unlimited","Unlimited")],
                     ["Renews on",    renews(plan)],
@@ -481,20 +822,23 @@ export default function CharitySetupPage() {
                   ))}
                 </div>
 
-                <p className="text-[#6E6E6E] text-[14px] mb-4">A receipt has been sent to you.</p>
-
-                {!selectedOrg.v && (
-                  <div className="bg-[#F6F6F6] rounded-2xl px-5 py-4 text-[14px] text-[#6E6E6E] mb-5">
-                    <b className="text-[#1A1A1A]">Next, verify your organization.</b> Upload your registration documents from your profile to earn the verified badge. Donors trust verified charities more.
-                  </div>
-                )}
+                <div className="bg-[#E5F6F8] rounded-2xl px-5 py-4 text-[14px] text-[#1A1A1A] mb-5">
+                  <b className="block font-semibold mb-1">Login Ready:</b>
+                  Use <b>{adminEmail}</b> and your password to sign in to WeGen. Team members you added can also sign in with their respective emails and passwords to access this organization dashboard.
+                </div>
 
                 <div className="flex flex-wrap gap-3 mt-2">
                   <Link
                     href={`/org/${slugify(selectedOrg.n)}`}
                     className="bg-[#1A1A1A] hover:bg-black text-white font-semibold rounded-full px-6 py-3 transition-colors"
                   >
-                    View my organization
+                    Go to organization dashboard
+                  </Link>
+                  <Link
+                    href="/auth/login"
+                    className="border border-[#1A1A1A] hover:bg-[#F6F6F6] text-[#1A1A1A] font-semibold rounded-full px-6 py-3 transition-colors"
+                  >
+                    Test Sign in
                   </Link>
                 </div>
               </div>

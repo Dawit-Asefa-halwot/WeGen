@@ -1,9 +1,11 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiRequest } from '../lib/api-client';
 import { useAuthStore } from '../lib/auth-store';
+
+import { authenticateCustomUser } from '../lib/custom-users';
 
 interface AuthGateModalProps {
   next: string;
@@ -97,6 +99,27 @@ export default function AuthGateModal({ next, onClose, onSuccess }: AuthGateModa
     if (!validateEmail(siEmail)) { setError('Enter a valid email address.'); return; }
     if (!siPassword)             { setError('Enter your password.'); return; }
     setLoading(true);
+
+    // Check custom registered users
+    const customUser = authenticateCustomUser(siEmail.trim(), siPassword);
+    if (customUser) {
+      const isOrgUser = customUser.role === 'ORGANIZATION_ADMIN' || customUser.role === 'ORGANIZATION_MEMBER';
+      const parts = (customUser.name || 'User').split(' ');
+      authSuccess(
+        {
+          id: customUser.id,
+          email: customUser.email,
+          firstName: parts[0] || 'User',
+          lastName: parts.slice(1).join(' ') || '',
+          roles: isOrgUser ? ['ORGANIZATION_ADMIN', 'USER'] : ['FUNDRAISER', 'USER'],
+          isEmailVerified: true,
+        },
+        `token-${customUser.id}`
+      );
+      setLoading(false);
+      return;
+    }
+
     if (siEmail.trim().toLowerCase() === ADMIN_EMAIL && siPassword === ADMIN_PASSWORD) {
       authSuccess({ id: 'admin-001', email: ADMIN_EMAIL, firstName: 'WeGen', lastName: 'Admin', roles: ['ADMIN','FUNDRAISER'], isEmailVerified: true }, 'admin-demo-token');
       setLoading(false); return;

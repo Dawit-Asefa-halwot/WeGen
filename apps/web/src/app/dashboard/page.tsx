@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 
+import { saveCustomUser } from '../../lib/custom-users';
+
 interface CampaignData {
   title: string;
   goal: number;
@@ -20,10 +22,19 @@ interface AccountData {
   h: string; // Holder name
 }
 
+interface CreatorAccountData {
+  name: string;
+  email: string;
+  phone: string;
+  password?: string;
+  who?: string;
+}
+
 interface ProfileData {
   acct?: AccountData;
   id?: string;
   tasks?: number[];
+  creatorAccount?: CreatorAccountData;
 }
 
 const BANKS = [
@@ -43,17 +54,27 @@ const TASKS = [
 
 export default function UserDashboardPage() {
   const [tab, setTab] = useState<'today' | 'supporters' | 'share' | 'campaign'>('today');
-  const [openFormKey, setOpenFormKey] = useState<'acct' | 'id' | null>(null);
+  const [openFormKey, setOpenFormKey] = useState<'acct' | 'id' | 'creds' | null>(null);
 
   // Campaign & Profile State
   const [campaign, setCampaign] = useState<CampaignData | null>(null);
   const [profile, setProfile] = useState<ProfileData>({});
 
-  // Inline Form States
+  // Inline Form States - Payout Account
   const [acctType, setAcctType] = useState<string>('');
   const [acctNum, setAcctNum] = useState<string>('');
   const [acctHolder, setAcctHolder] = useState<string>('');
+
+  // Inline Form States - Creator Account Credentials
+  const [creatorName, setCreatorName] = useState<string>('');
+  const [creatorEmail, setCreatorEmail] = useState<string>('');
+  const [creatorPhone, setCreatorPhone] = useState<string>('');
+  const [creatorPassword, setCreatorPassword] = useState<string>('');
+  const [creatorConfirm, setCreatorConfirm] = useState<string>('');
+  const [showCreatorPw, setShowCreatorPw] = useState<boolean>(false);
+
   const [formErr, setFormErr] = useState<string>('');
+  const [successMsg, setSuccessMsg] = useState<string>('');
 
   // Load Saved Data from LocalStorage / URL
   useEffect(() => {
@@ -69,6 +90,23 @@ export default function UserDashboardPage() {
           setAcctNum(p.acct.n || '');
           setAcctHolder(p.acct.h || '');
         }
+        if (p.creatorAccount) {
+          setCreatorName(p.creatorAccount.name || '');
+          setCreatorEmail(p.creatorAccount.email || '');
+          setCreatorPhone(p.creatorAccount.phone || '');
+        }
+      }
+
+      // Check current user if creator credentials not in profile yet
+      const curUser = localStorage.getItem('wegen_user') || localStorage.getItem('ethiofund-user');
+      if (curUser) {
+        try {
+          const u = JSON.parse(curUser);
+          if (u.email && !creatorEmail) setCreatorEmail(u.email);
+          if (u.name && !creatorName) setCreatorName(u.name);
+          else if (u.firstName && !creatorName) setCreatorName(`${u.firstName} ${u.lastName || ''}`.trim());
+          if (u.phone && !creatorPhone) setCreatorPhone(u.phone);
+        } catch {}
       }
 
       if (savedCampaign) {
@@ -101,6 +139,7 @@ export default function UserDashboardPage() {
 
   // Verification Steps Computation
   const stepSubOk = Boolean(campaign);
+  const stepCredsOk = Boolean(profile.creatorAccount?.email && profile.creatorAccount?.name);
   const stepAcctOk = Boolean(profile.acct);
   const stepIdOk = Boolean(profile.id);
 
@@ -110,6 +149,15 @@ export default function UserDashboardPage() {
       t: 'Campaign submitted',
       d: 'Sent to our team',
       ok: stepSubOk,
+      auto: false,
+    },
+    {
+      k: 'creds',
+      t: campaign?.who === 'other' ? 'Beneficiary & Creator Credentials' : 'Your Verification Credentials',
+      d: profile.creatorAccount
+        ? `${profile.creatorAccount.name} · ${profile.creatorAccount.email} · ${profile.creatorAccount.phone}`
+        : 'Required: Email, password, name, and phone number for login and verification',
+      ok: stepCredsOk,
       auto: false,
     },
     {
@@ -131,9 +179,9 @@ export default function UserDashboardPage() {
     {
       k: 'rev',
       t: 'Team review',
-      d: profile.acct && profile.id
+      d: profile.creatorAccount && profile.acct && profile.id
         ? 'In review. We’ll let you know once you’re approved.'
-        : 'Starts when the steps above are done',
+        : 'Starts when all 3 required steps above are completed',
       ok: false,
       auto: true,
     },
@@ -143,6 +191,67 @@ export default function UserDashboardPage() {
   const nextIncompleteStep = stepsList.find((s) => !s.ok && !s.auto);
 
   // Form Save Handlers
+  const handleSaveCreds = () => {
+    setFormErr('');
+    setSuccessMsg('');
+
+    if (!creatorName.trim()) {
+      setFormErr('Enter your full name.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(creatorEmail.trim())) {
+      setFormErr('Enter a valid email address.');
+      return;
+    }
+    const cleanPhone = creatorPhone.replace(/[\s-]/g, '');
+    if (!/^(\+?251|0)[79]\d{8}$/.test(cleanPhone)) {
+      setFormErr('Enter a valid Ethiopian phone number (e.g. 0912345678 or 0712345678).');
+      return;
+    }
+    if (!creatorPassword) {
+      setFormErr('Enter a password for your account.');
+      return;
+    }
+    if (creatorPassword.length < 6) {
+      setFormErr('Password must be at least 6 characters.');
+      return;
+    }
+    if (creatorPassword !== creatorConfirm) {
+      setFormErr('Passwords do not match.');
+      return;
+    }
+
+    const credsData: CreatorAccountData = {
+      name: creatorName.trim(),
+      email: creatorEmail.trim().toLowerCase(),
+      phone: cleanPhone,
+      password: creatorPassword,
+      who: campaign?.who || 'me',
+    };
+
+    saveProfileData({ ...profile, creatorAccount: credsData });
+
+    saveCustomUser({
+      name: creatorName.trim(),
+      email: creatorEmail.trim().toLowerCase(),
+      phone: cleanPhone,
+      password: creatorPassword,
+      role: 'FUNDRAISER',
+      campaignType: (campaign?.who as any) || 'me',
+    });
+
+    try {
+      localStorage.setItem('ethiofund-user', JSON.stringify({
+        email: creatorEmail.trim().toLowerCase(),
+        name: creatorName.trim(),
+        role: 'FUNDRAISER',
+      }));
+    } catch {}
+
+    setOpenFormKey(null);
+    setSuccessMsg('Account credentials verified and saved! You can log in with this email and password anytime.');
+  };
+
   const handleSaveAcct = () => {
     setFormErr('');
     if (!acctType) {
@@ -338,15 +447,22 @@ export default function UserDashboardPage() {
                       {nextIncompleteStep ? 'Finish verification to go live' : 'Verification in review'}
                     </h2>
                     <p className="text-[#6E6E6E] text-[15px]">
-                      {doneStepsCount} of 4 steps done
+                      {doneStepsCount} of 5 steps done
                     </p>
                     <div className="h-2 rounded-full bg-[#EBEBEB] mt-3.5 mb-1.5 overflow-hidden">
                       <div
                         className="h-full bg-[#1A1A1A] rounded-full transition-all duration-600"
-                        style={{ width: `${doneStepsCount * 25}%` }}
+                        style={{ width: `${Math.round((doneStepsCount / 5) * 100)}%` }}
                       />
                     </div>
                   </div>
+
+                  {successMsg && (
+                    <div className="mx-6 mb-3 p-3 bg-[#E8F8D5] border border-[#B6EA6C] text-[#1A1A1A] rounded-xl text-xs font-semibold flex items-center justify-between">
+                      <span>✓ {successMsg}</span>
+                      <button type="button" onClick={() => setSuccessMsg('')} className="ml-2 text-sm text-[#1A1A1A]/60 hover:text-[#1A1A1A]">✕</button>
+                    </div>
+                  )}
 
                   <div className="divide-y divide-[#EBEBEB]">
                     {stepsList.map((s) => {
@@ -375,7 +491,7 @@ export default function UserDashboardPage() {
                               <button
                                 type="button"
                                 onClick={() => {
-                                  setOpenFormKey(isOpen ? null : (s.k as 'acct' | 'id'));
+                                  setOpenFormKey(isOpen ? null : (s.k as 'acct' | 'id' | 'creds'));
                                   setFormErr('');
                                 }}
                                 className={`btn-pill btn-small ${isNext ? 'btn-dark' : 'btn-outline'}`}
@@ -384,6 +500,99 @@ export default function UserDashboardPage() {
                               </button>
                             )}
                           </div>
+
+                          {/* Inline Form: Verification & Login Credentials (For Self or Someone Else) */}
+                          {isOpen && s.k === 'creds' && (
+                            <div className="ml-0 min-[860px]:ml-[46px] m-4 mt-0 grid gap-3 p-4 bg-[#F6F6F6] rounded-2xl">
+                              <div className="bg-[#E5F6F8] rounded-xl p-3 text-xs text-[#1A1A1A]">
+                                <b>{campaign?.who === 'other' ? 'Raising for someone else:' : 'Raising for yourself:'}</b>{' '}
+                                Enter your full legal name, email, phone number, and a password. This verifies your identity for the review team and enables you to securely log in to WeGen anytime to manage this campaign.
+                              </div>
+
+                              <label className="fld block bg-white border border-[#cfcfcf] rounded-xl p-3">
+                                <span className="text-xs text-[#6E6E6E] block mb-1">Full legal name</span>
+                                <input
+                                  type="text"
+                                  value={creatorName}
+                                  onChange={(e) => setCreatorName(e.target.value)}
+                                  placeholder="e.g. Abebe Kebede"
+                                  className="w-full border-0 outline-none text-[16px] bg-transparent"
+                                />
+                              </label>
+
+                              <label className="fld block bg-white border border-[#cfcfcf] rounded-xl p-3">
+                                <span className="text-xs text-[#6E6E6E] block mb-1">Email address</span>
+                                <input
+                                  type="email"
+                                  value={creatorEmail}
+                                  onChange={(e) => setCreatorEmail(e.target.value)}
+                                  placeholder="you@domain.com"
+                                  className="w-full border-0 outline-none text-[16px] bg-transparent"
+                                />
+                              </label>
+
+                              <label className="fld block bg-white border border-[#cfcfcf] rounded-xl p-3">
+                                <span className="text-xs text-[#6E6E6E] block mb-1">Phone number</span>
+                                <input
+                                  type="tel"
+                                  value={creatorPhone}
+                                  onChange={(e) => setCreatorPhone(e.target.value)}
+                                  placeholder="0912345678 or 0712345678"
+                                  className="w-full border-0 outline-none text-[16px] bg-transparent"
+                                />
+                              </label>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <label className="fld block bg-white border border-[#cfcfcf] rounded-xl p-3 relative">
+                                  <span className="text-xs text-[#6E6E6E] block mb-1">Create password</span>
+                                  <input
+                                    type={showCreatorPw ? 'text' : 'password'}
+                                    value={creatorPassword}
+                                    onChange={(e) => setCreatorPassword(e.target.value)}
+                                    placeholder="At least 6 characters"
+                                    className="w-full border-0 outline-none text-[16px] bg-transparent pr-8"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => setShowCreatorPw(!showCreatorPw)}
+                                    className="absolute right-3 top-7 text-xs text-[#6E6E6E] hover:text-[#1A1A1A]"
+                                  >
+                                    {showCreatorPw ? 'Hide' : 'Show'}
+                                  </button>
+                                </label>
+
+                                <label className="fld block bg-white border border-[#cfcfcf] rounded-xl p-3">
+                                  <span className="text-xs text-[#6E6E6E] block mb-1">Confirm password</span>
+                                  <input
+                                    type={showCreatorPw ? 'text' : 'password'}
+                                    value={creatorConfirm}
+                                    onChange={(e) => setCreatorConfirm(e.target.value)}
+                                    placeholder="Re-enter password"
+                                    className="w-full border-0 outline-none text-[16px] bg-transparent"
+                                  />
+                                </label>
+                              </div>
+
+                              {formErr && <div className="text-[#B3261E] text-xs font-semibold">{formErr}</div>}
+
+                              <div className="pt-1 flex items-center gap-3">
+                                <button
+                                  type="button"
+                                  onClick={handleSaveCreds}
+                                  className="btn-pill btn-dark btn-small"
+                                >
+                                  Save credentials & verify
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => { setOpenFormKey(null); setFormErr(''); }}
+                                  className="btn-pill btn-outline btn-small"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          )}
 
                           {/* Inline Form: Payout Account */}
                           {isOpen && s.k === 'acct' && (
