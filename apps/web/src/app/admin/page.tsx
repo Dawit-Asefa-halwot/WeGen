@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 interface AdminDecision {
   st: 'live' | 'rejected' | 'changes' | 'review';
@@ -151,9 +152,141 @@ const f0 = (n: number) => Math.round(n).toLocaleString('en-US');
 const dt = (d: number) => new Date(Date.now() - d * 864e5).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 
 export default function AdminPage() {
-  const [tab, setTab] = useState<'overview' | 'reviews' | 'campaigns' | 'users' | 'donations' | 'analytics' | 'reports'>('overview');
+  const pathname = usePathname();
+  const isSuper = pathname?.startsWith('/super') ?? false;
+
+  const [tab, setTab] = useState<'overview' | 'reviews' | 'campaigns' | 'users' | 'donations' | 'analytics' | 'reports' | 'complaints' | 'team' | 'audit' | 'settings'>('overview');
   const [flt, setFlt] = useState<string>('review');
   const [q, setQ] = useState<string>('');
+
+  // Complaints state
+  const [complaintsFlt, setComplaintsFlt] = useState<'open' | 'action' | 'dismissed' | 'all'>('open');
+  const [activeComplaintId, setActiveComplaintId] = useState<string | null>(null);
+  const [complaintCheck1, setComplaintCheck1] = useState(false);
+  const [complaintCheck2, setComplaintCheck2] = useState(false);
+  const [complaintCheck3, setComplaintCheck3] = useState(false);
+  const [complaintNote, setComplaintNote] = useState('');
+  const [complaintError, setComplaintError] = useState('');
+  const [previewDoc, setPreviewDoc] = useState<string | null>(null);
+
+  const [complaintsData, setComplaintsData] = useState<Array<{
+    id: string;
+    c: string;
+    reason: string;
+    text: string;
+    by: { name: string; email: string; rel: string };
+    docs: Array<[string, string, string]>;
+    day: number;
+    s: 'new' | 'investigating' | 'escalated' | 'docs' | 'action' | 'dismissed';
+    notes: Array<{ by: string; t: number; x: string }>;
+  }>>([
+    {
+      id: 'r1',
+      c: 'c0',
+      reason: 'Fraud or scam',
+      text: 'I believe this fundraiser is a scam. The story does not match what the family told people in our area, and the donation account belongs to someone else.',
+      by: { name: 'Abel Tadesse', email: 'abel@example.com', rel: 'Donor' },
+      docs: [['chat-screenshot.jpg', 'Image', '1.2 MB']],
+      day: 2,
+      s: 'new',
+      notes: [],
+    },
+    {
+      id: 'r2',
+      c: 'c0',
+      reason: 'Fake story or photos',
+      text: 'The photos are copied from another page and the hospital named in the story says it has no such patient.',
+      by: { name: 'Bethel Wolde', email: 'bethel@example.com', rel: 'Friend of the owner' },
+      docs: [['hospital-letter.pdf', 'PDF', '340 KB'], ['original-post.png', 'Image', '860 KB']],
+      day: 5,
+      s: 'investigating',
+      notes: [{ by: 'Admin', t: Date.now() - 3600000, x: 'Contacted Tikur Anbessa administration for patient verification.' }],
+    },
+    {
+      id: 'r3',
+      c: 'c3',
+      reason: 'Misuse of funds',
+      text: 'The owner already received money, but posted no update and is asking for more with a different story.',
+      by: { name: 'Chala Kassa', email: 'chala@example.com', rel: 'Family member' },
+      docs: [['chat-screenshot.jpg', 'Image', '1.2 MB'], ['hospital-letter.pdf', 'PDF', '340 KB'], ['id-copy.jpg', 'Image', '2.1 MB']],
+      day: 1,
+      s: 'escalated',
+      notes: [],
+    },
+    {
+      id: 'r4',
+      c: 'c2',
+      reason: 'Impersonation',
+      text: 'This person is using my relative’s name and photo without permission.',
+      by: { name: 'Eden Gebre', email: 'eden@example.com', rel: 'Stranger' },
+      docs: [['id-copy.jpg', 'Image', '2.1 MB']],
+      day: 9,
+      s: 'new',
+      notes: [],
+    },
+    {
+      id: 'r5',
+      c: 'c4',
+      reason: 'Fake story or photos',
+      text: 'The photos are copied from another page and the hospital named in the story says it has no such patient.',
+      by: { name: 'Fikir Hailu', email: 'fikir@example.com', rel: 'Neighbour' },
+      docs: [['original-post.png', 'Image', '860 KB'], ['id-copy.jpg', 'Image', '2.1 MB']],
+      day: 3,
+      s: 'docs',
+      notes: [{ by: 'Admin', t: Date.now() - 7200000, x: 'Requested hospital medical release consent letter.' }],
+    },
+    {
+      id: 'r6',
+      c: 'c1',
+      reason: 'Duplicate fundraiser',
+      text: 'The same story and photos are running on a second fundraiser by the same person.',
+      by: { name: 'Genet Mekonnen', email: 'genet@example.com', rel: 'Donor' },
+      docs: [['chat-screenshot.jpg', 'Image', '1.2 MB']],
+      day: 12,
+      s: 'investigating',
+      notes: [],
+    },
+    {
+      id: 'r7',
+      c: 'c5',
+      reason: 'Inappropriate content',
+      text: 'The story contains content that should not be public.',
+      by: { name: 'Henok Negash', email: 'henok@example.com', rel: 'Friend of the owner' },
+      docs: [['chat-screenshot.jpg', 'Image', '1.2 MB'], ['hospital-letter.pdf', 'PDF', '340 KB']],
+      day: 0,
+      s: 'new',
+      notes: [],
+    },
+    {
+      id: 'r8',
+      c: 'c3',
+      reason: 'Fraud or scam',
+      text: 'I believe this fundraiser is a scam. The story does not match what the family told people in our area.',
+      by: { name: 'Iman Teshome', email: 'iman@example.com', rel: 'Donor' },
+      docs: [['id-copy.jpg', 'Image', '2.1 MB']],
+      day: 20,
+      s: 'dismissed',
+      notes: [{ by: 'Super Admin', t: Date.now() - 86400000, x: 'Investigated and verified genuine with regional branch.' }],
+    },
+  ]);
+
+  // Super Admin Team state (with password support)
+  const [teamMembers, setTeamMembers] = useState([
+    { id: 'tm-1', name: 'Dawit Asefa (Platform Owner)', email: 'owner@wegen.et', role: 'SUPER_ADMIN', status: 'Active', lastActive: 'Just now' },
+    { id: 'tm-2', name: 'Kalkidan Mengistu', email: 'kalkidan@wegen.et', role: 'ADMIN', status: 'Active', lastActive: '2 hours ago' },
+    { id: 'tm-3', name: 'Selamawit Bekele', email: 'selam@wegen.et', role: 'STAFF', status: 'Active', lastActive: '10 mins ago' },
+  ]);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteName, setInviteName] = useState('');
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [invitePassword, setInvitePassword] = useState('');
+  const [inviteRole, setInviteRole] = useState<'ADMIN' | 'STAFF'>('STAFF');
+  const [superFeedback, setSuperFeedback] = useState<string | null>(null);
+
+  // Fee settings state
+  const [platformFeeRate, setPlatformFeeRate] = useState('10.0');
+  const [feeEffectiveDate, setFeeEffectiveDate] = useState('2026-11-01');
+  const [feeAuthPassword, setFeeAuthPassword] = useState('');
 
   // Analytics tab states (7, 14, 30 days)
   const [analyticsRange, setAnalyticsRange] = useState<7 | 14 | 30>(14);
@@ -614,12 +747,50 @@ export default function AdminPage() {
         .tg.review, .tg.pending {
           background: #FFF3C9;
         }
-        .tg.rejected, .tg.paused, .tg.suspended {
+        .tg.rejected, .tg.paused, .tg.suspended, .tg.action {
           background: #FBE0DD;
           color: var(--err);
         }
-        .tg.changes {
+        .tg.changes, .tg.investigating, .tg.docs {
           background: #E5F6F8;
+        }
+        .tg.new, .tg.escalated {
+          background: #FFF3C9;
+        }
+        .tg.dismissed {
+          background: var(--soft);
+        }
+        .fl {
+          display: flex;
+          gap: 10px;
+          align-items: center;
+          padding: 8px 0;
+          border-bottom: 1px solid var(--line);
+        }
+        .fl b {
+          flex: 1;
+          min-width: 0;
+          overflow-wrap: anywhere;
+          font-weight: 500;
+        }
+        .nt2 {
+          background: var(--soft);
+          border-radius: 12px;
+          padding: 8px 12px;
+          margin-top: 8px;
+          font-size: 14px;
+        }
+        .idp {
+          margin-top: 8px;
+          border: 1.5px dashed #bbb;
+          border-radius: 10px;
+          aspect-ratio: 1.6;
+          display: grid;
+          place-items: center;
+          color: var(--mute);
+          font-size: 13px;
+          text-align: center;
+          padding: 8px;
         }
         .pr {
           height: 6px;
@@ -713,7 +884,7 @@ export default function AdminPage() {
             <Link href="/" className="sb-logo focus-visible:outline-none">
               <i></i>
               <span>WeGen</span>
-              <em>Admin</em>
+              <em>{isSuper ? 'Super' : 'Admin'}</em>
             </Link>
 
             <button
@@ -773,8 +944,51 @@ export default function AdminPage() {
               <span>Reports</span>
             </button>
 
+            <button
+              type="button"
+              onClick={() => { setTab('complaints'); setQ(''); }}
+              className={`sb-btn ${tab === 'complaints' ? 'on' : ''}`}
+            >
+              <span>Complaints</span>
+              {complaintsData.filter(r => ['new', 'investigating', 'escalated', 'docs'].includes(r.s)).length > 0 && (
+                <b style={{ background: 'var(--err)', color: '#fff' }}>
+                  {complaintsData.filter(r => ['new', 'investigating', 'escalated', 'docs'].includes(r.s)).length}
+                </b>
+              )}
+            </button>
+
+            {isSuper && (
+              <>
+                <div style={{ height: '1px', background: 'var(--line)', margin: '8px 10px' }} />
+                
+                <button
+                  type="button"
+                  onClick={() => { setTab('team'); setQ(''); setFlt('all'); }}
+                  className={`sb-btn ${tab === 'team' ? 'on' : ''}`}
+                >
+                  <span>Team</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setTab('audit'); setQ(''); setFlt('all'); }}
+                  className={`sb-btn ${tab === 'audit' ? 'on' : ''}`}
+                >
+                  <span>Audit Log</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setTab('settings'); setQ(''); setFlt('all'); }}
+                  className={`sb-btn ${tab === 'settings' ? 'on' : ''}`}
+                >
+                  <span>Fee Settings</span>
+                </button>
+              </>
+            )}
+
             <small className="sb-footnote">
-              Official audit logging active. All exports are tracked.
+              {isSuper ? 'Signed in as Super Admin (Owner). Full platform powers active.' : 'Official audit logging active. All exports are tracked.'}
             </small>
           </nav>
 
@@ -1971,6 +2185,736 @@ export default function AdminPage() {
               </div>
             )}
 
+            {/* COMPLAINTS VIEW (Admin & Super Admin) */}
+            {tab === 'complaints' && (
+              <div>
+                <h1 className="num">Complaints</h1>
+                <p className="sub">People who reported a fundraiser. Check the reason and evidence before acting.</p>
+
+                {/* KPI Cards */}
+                <div className="kp">
+                  <div className="k">
+                    <small>Open complaints</small>
+                    <b>{complaintsData.filter(r => ['new', 'investigating', 'escalated', 'docs'].includes(r.s)).length}</b>
+                  </div>
+                  <div className={`k ${new Set(complaintsData.filter(r => ['new', 'investigating', 'escalated', 'docs'].includes(r.s) && complaintsData.filter(x => x.c === r.c).length > 1).map(r => r.c)).size > 0 ? 'al' : ''}`}>
+                    <small>Campaigns reported 2+ times</small>
+                    <b>{new Set(complaintsData.filter(r => ['new', 'investigating', 'escalated', 'docs'].includes(r.s) && complaintsData.filter(x => x.c === r.c).length > 1).map(r => r.c)).size}</b>
+                  </div>
+                  <div className="k">
+                    <small>Oldest open</small>
+                    <b>{complaintsData.filter(r => ['new', 'investigating', 'escalated', 'docs'].includes(r.s)).length > 0 ? Math.max(...complaintsData.filter(r => ['new', 'investigating', 'escalated', 'docs'].includes(r.s)).map(r => r.day)) : 0} d</b>
+                  </div>
+                  <div className="k">
+                    <small>Closed</small>
+                    <b>{complaintsData.filter(r => ['action', 'dismissed'].includes(r.s)).length}</b>
+                  </div>
+                </div>
+
+                {/* Search & Filters */}
+                <div className="ct">
+                  <input
+                    placeholder="Search campaign, reason or reporter"
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                  />
+                  {[
+                    ['open', 'Open', complaintsData.filter(r => ['new', 'investigating', 'escalated', 'docs'].includes(r.s)).length],
+                    ['action', 'Action taken', complaintsData.filter(r => r.s === 'action').length],
+                    ['dismissed', 'Dismissed', complaintsData.filter(r => r.s === 'dismissed').length],
+                    ['all', 'All', complaintsData.length],
+                  ].map(([val, label, count]) => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => setComplaintsFlt(val as any)}
+                      className={`f ${complaintsFlt === val ? 'on' : ''}`}
+                    >
+                      {label} ({count})
+                    </button>
+                  ))}
+                </div>
+
+                {/* Complaints Table */}
+                <div className="tw">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Campaign</th>
+                        <th>Reason</th>
+                        <th>Reporter</th>
+                        <th>Files</th>
+                        <th>Waiting</th>
+                        <th>Status</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {complaintsData
+                        .filter((r) => {
+                          const matchesFilter =
+                            complaintsFlt === 'all'
+                              ? true
+                              : complaintsFlt === 'open'
+                              ? ['new', 'investigating', 'escalated', 'docs'].includes(r.s)
+                              : r.s === complaintsFlt;
+                          const camp = getCampaign(r.c);
+                          const owner = camp ? getUser(camp.o) : null;
+                          const searchText = `${camp?.t || ''} ${r.reason} ${r.by.name} ${owner?.name || ''}`.toLowerCase();
+                          return matchesFilter && searchText.includes(q.toLowerCase());
+                        })
+                        .sort((a, b) => {
+                          const countA = complaintsData.filter(x => x.c === a.c).length;
+                          const countB = complaintsData.filter(x => x.c === b.c).length;
+                          return countB - countA || b.day - a.day;
+                        })
+                        .map((r) => {
+                          const camp = getCampaign(r.c);
+                          const owner = camp ? getUser(camp.o) : null;
+                          const reportCount = complaintsData.filter(x => x.c === r.c).length;
+                          return (
+                            <tr
+                              key={r.id}
+                              onClick={() => {
+                                setActiveComplaintId(r.id);
+                                setComplaintCheck1(false);
+                                setComplaintCheck2(false);
+                                setComplaintCheck3(false);
+                                setComplaintNote('');
+                                setComplaintError('');
+                                setPreviewDoc(null);
+                              }}
+                              style={{ cursor: 'pointer' }}
+                            >
+                              <td>
+                                <b>{camp?.t || 'Fundraiser'}</b>
+                                {reportCount > 1 && (
+                                  <span className="tg suspended" style={{ marginLeft: '6px' }}>
+                                    {reportCount} reports
+                                  </span>
+                                )}
+                                <br />
+                                <small className="text-[#6E6E6E]">{owner?.name || 'Owner'}</small>
+                              </td>
+                              <td>{r.reason}</td>
+                              <td>{r.by.name}</td>
+                              <td>{r.docs.length}</td>
+                              <td>{r.day ? `${r.day} d` : 'Today'}</td>
+                              <td>
+                                <span className={`tg ${r.s === 'action' ? 'action' : r.s === 'dismissed' ? 'dismissed' : r.s === 'new' ? 'new' : r.s === 'investigating' ? 'investigating' : r.s === 'escalated' ? 'escalated' : 'docs'}`}>
+                                  {r.s === 'action' ? 'Campaign paused' : r.s === 'docs' ? 'Documents requested' : r.s}
+                                </span>
+                              </td>
+                              <td>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveComplaintId(r.id);
+                                    setComplaintCheck1(false);
+                                    setComplaintCheck2(false);
+                                    setComplaintCheck3(false);
+                                    setComplaintNote('');
+                                    setComplaintError('');
+                                    setPreviewDoc(null);
+                                  }}
+                                  className="btn s"
+                                >
+                                  Review
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      {complaintsData.length === 0 && (
+                        <tr>
+                          <td colSpan={7} className="text-center text-[#6E6E6E] py-8">
+                            No complaints here.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Complaint Review Modal Dialog */}
+                {activeComplaintId && (() => {
+                  const r = complaintsData.find(x => x.id === activeComplaintId);
+                  if (!r) return null;
+                  const camp = getCampaign(r.c);
+                  const owner = camp ? getUser(camp.o) : null;
+                  const reportCount = complaintsData.filter(x => x.c === r.c).length;
+                  const isClosed = r.s === 'action' || r.s === 'dismissed';
+                  const checklistCompleted = complaintCheck1 && complaintCheck2 && complaintCheck3;
+
+                  return (
+                    <div
+                      className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
+                      onClick={() => setActiveComplaintId(null)}
+                    >
+                      <div
+                        className="bg-white rounded-[26px] w-full max-w-[760px] p-6 sm:p-7 shadow-2xl my-auto text-[#1A1A1A] max-h-[92vh] overflow-y-auto"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <h2 className="text-xl font-bold font-heading">{camp?.t || 'Fundraiser'}</h2>
+                        <p className="text-xs text-[#6E6E6E] mt-1 mb-4">
+                          Owner: {owner?.name || 'Organizer'} · {camp?.cat || 'General'} · goal {camp ? f0(camp.goal) : '0'} ETB · campaign <span className={`tg ${camp?.st === 'live' ? 'live' : 'paused'}`}>{camp?.st || 'live'}</span> · {reportCount} report{reportCount > 1 ? 's' : ''} on this campaign
+                        </p>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 my-4">
+                          <div className="border border-[#EBEBEB] rounded-2xl p-4 bg-[#FAFAFA]">
+                            <small className="text-[#6E6E6E] uppercase text-[11px] font-bold block mb-1">Reason</small>
+                            <b className="text-sm block">{r.reason}</b>
+                            <p className="text-xs text-[#1A1A1A] mt-1.5 leading-relaxed">{r.text}</p>
+                          </div>
+
+                          <div className="border border-[#EBEBEB] rounded-2xl p-4 bg-[#FAFAFA]">
+                            <small className="text-[#6E6E6E] uppercase text-[11px] font-bold block mb-1">Reporter</small>
+                            <div className="text-sm font-semibold">{r.by.name}</div>
+                            <div className="text-xs font-mono text-[#6E6E6E]">{r.by.email}</div>
+                            <div className="text-xs text-[#6E6E6E] mt-1">{r.by.rel} · {r.day ? `${r.day} days ago` : 'today'}</div>
+                          </div>
+                        </div>
+
+                        {/* Evidence Files */}
+                        <div className="border border-[#EBEBEB] rounded-2xl p-4 mb-4">
+                          <small className="text-[#6E6E6E] uppercase text-[11px] font-bold block mb-2">Evidence ({r.docs.length})</small>
+                          {r.docs.map(([docName, docType, docSize], idx) => (
+                            <div key={idx} className="fl">
+                              <span>{docType === 'PDF' ? '📄' : '🖼️'}</span>
+                              <b className="text-xs">{docName}</b>
+                              <span className="text-xs text-[#6E6E6E]">{docType} · {docSize}</span>
+                              <button
+                                type="button"
+                                onClick={() => setPreviewDoc(docName)}
+                                className="btn o s"
+                              >
+                                Preview
+                              </button>
+                            </div>
+                          ))}
+                          {previewDoc && (
+                            <div className="idp">
+                              Sample preview of {previewDoc}.<br />
+                              Served via short-lived signed URL with Cache-Control: no-store. View logged to audit log.
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Status & Previous Notes */}
+                        <p className="text-xs font-semibold mb-2">
+                          Status: <span className={`tg ${r.s === 'action' ? 'action' : r.s === 'dismissed' ? 'dismissed' : r.s === 'new' ? 'new' : r.s === 'investigating' ? 'investigating' : 'docs'}`}>{r.s === 'action' ? 'Campaign paused' : r.s}</span>
+                        </p>
+                        {r.notes.map((n, i) => (
+                          <div key={i} className="nt2">
+                            <b>{n.by}</b> · {new Date(n.t).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                            <br />
+                            {n.x}
+                          </div>
+                        ))}
+
+                        {/* Action Checklist & Buttons */}
+                        {!isClosed && (
+                          <div className="mt-4 pt-3 border-t border-[#EBEBEB]">
+                            <h3 className="font-bold text-sm mb-2">Checklist</h3>
+                            <label className="flex items-start gap-2.5 text-xs cursor-pointer mb-2">
+                              <input
+                                type="checkbox"
+                                checked={complaintCheck1}
+                                onChange={(e) => setComplaintCheck1(e.target.checked)}
+                                className="w-4 h-4 accent-[#1A1A1A] mt-0.5 shrink-0"
+                              />
+                              <span>The evidence supports the claim</span>
+                            </label>
+                            <label className="flex items-start gap-2.5 text-xs cursor-pointer mb-2">
+                              <input
+                                type="checkbox"
+                                checked={complaintCheck2}
+                                onChange={(e) => setComplaintCheck2(e.target.checked)}
+                                className="w-4 h-4 accent-[#1A1A1A] mt-0.5 shrink-0"
+                              />
+                              <span>The owner’s documents were checked again</span>
+                            </label>
+                            <label className="flex items-start gap-2.5 text-xs cursor-pointer mb-3">
+                              <input
+                                type="checkbox"
+                                checked={complaintCheck3}
+                                onChange={(e) => setComplaintCheck3(e.target.checked)}
+                                className="w-4 h-4 accent-[#1A1A1A] mt-0.5 shrink-0"
+                              />
+                              <span>This is not a duplicate or already-resolved report</span>
+                            </label>
+
+                            <textarea
+                              value={complaintNote}
+                              onChange={(e) => { setComplaintNote(e.target.value); setComplaintError(''); }}
+                              placeholder="Note, message to the owner, or reason (5+ characters)"
+                              className="w-full border border-[#cfcfcf] rounded-xl p-3 text-xs min-h-[70px] outline-none"
+                            />
+                            {complaintError && <div className="text-[#B3261E] text-xs font-semibold mb-2">{complaintError}</div>}
+
+                            <div className="flex items-center justify-end gap-2 flex-wrap pt-2">
+                              <button type="button" onClick={() => setActiveComplaintId(null)} className="btn o s">Close</button>
+                              
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (complaintNote.trim().length < 5) {
+                                    setComplaintError('Write a note or reason (5+ characters).');
+                                    return;
+                                  }
+                                  setComplaintsData(prev => prev.map(item => item.id === r.id ? {
+                                    ...item,
+                                    notes: [...item.notes, { by: isSuper ? 'Super Admin' : 'Admin', t: Date.now(), x: complaintNote.trim() }]
+                                  } : item));
+                                  setComplaintNote('');
+                                }}
+                                className="btn o s"
+                              >
+                                Add note
+                              </button>
+
+                              {r.s === 'new' && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setComplaintsData(prev => prev.map(item => item.id === r.id ? {
+                                      ...item,
+                                      s: 'investigating',
+                                      notes: complaintNote.trim() ? [...item.notes, { by: isSuper ? 'Super Admin' : 'Admin', t: Date.now(), x: complaintNote.trim() }] : item.notes
+                                    } : item));
+                                    setActiveComplaintId(null);
+                                  }}
+                                  className="btn o s"
+                                >
+                                  Start investigating
+                                </button>
+                              )}
+
+                              <button
+                                type="button"
+                                disabled={!checklistCompleted}
+                                onClick={() => {
+                                  if (complaintNote.trim().length < 5) {
+                                    setComplaintError('Write a short note or reason (5+ characters).');
+                                    return;
+                                  }
+                                  setComplaintsData(prev => prev.map(item => item.id === r.id ? {
+                                    ...item,
+                                    s: 'dismissed',
+                                    notes: [...item.notes, { by: isSuper ? 'Super Admin' : 'Admin', t: Date.now(), x: `Dismissed: ${complaintNote.trim()}` }]
+                                  } : item));
+                                  setActiveComplaintId(null);
+                                }}
+                                className="btn o s disabled:opacity-40"
+                              >
+                                Dismiss
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (complaintNote.trim().length < 5) {
+                                    setComplaintError('Write a reason for requesting documents (5+ characters).');
+                                    return;
+                                  }
+                                  setComplaintsData(prev => prev.map(item => item.id === r.id ? {
+                                    ...item,
+                                    s: 'docs',
+                                    notes: [...item.notes, { by: isSuper ? 'Super Admin' : 'Admin', t: Date.now(), x: `Documents requested: ${complaintNote.trim()}` }]
+                                  } : item));
+                                  setActiveComplaintId(null);
+                                }}
+                                className="btn o s"
+                              >
+                                Request documents
+                              </button>
+
+                              <button
+                                type="button"
+                                disabled={!checklistCompleted}
+                                onClick={() => {
+                                  if (complaintNote.trim().length < 5) {
+                                    setComplaintError('Write a reason for pausing the campaign (5+ characters).');
+                                    return;
+                                  }
+                                  setComplaintsData(prev => prev.map(item => item.id === r.id ? {
+                                    ...item,
+                                    s: 'action',
+                                    notes: [...item.notes, { by: isSuper ? 'Super Admin' : 'Admin', t: Date.now(), x: `Campaign paused: ${complaintNote.trim()}` }]
+                                  } : item));
+                                  // Pause the campaign in campaigns list
+                                  setCampaigns(prev => prev.map(c => c.id === r.c ? { ...c, st: 'paused' } : c));
+                                  setActiveComplaintId(null);
+                                }}
+                                className="btn d s disabled:opacity-40"
+                              >
+                                Pause campaign
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {isClosed && (
+                          <div className="flex justify-end pt-3 border-t border-[#EBEBEB]">
+                            <button type="button" onClick={() => setActiveComplaintId(null)} className="btn o s">Close</button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* 8. SUPER ADMIN: TEAM MANAGEMENT (With password creation) */}
+            {tab === 'team' && isSuper && (
+              <div className="space-y-6 animate-fade-in">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h1 className="num">Team & Role Management</h1>
+                    <p className="sub">Add team members with passwords, adjust roles, or suspend access.</p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowInviteModal(true)}
+                    className="btn d text-sm"
+                  >
+                    + Add Team Member
+                  </button>
+                </div>
+
+                {superFeedback && (
+                  <div className="p-3 bg-emerald-100 border border-emerald-300 text-emerald-800 rounded-xl text-xs font-bold">
+                    {superFeedback}
+                  </div>
+                )}
+
+                <div className="tw">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Last Active</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {teamMembers.map((m) => (
+                        <tr key={m.id}>
+                          <td><b>{m.name}</b></td>
+                          <td><span className="font-mono text-xs">{m.email}</span></td>
+                          <td>
+                            {m.role === 'SUPER_ADMIN' ? (
+                              <span className="tg d">Super Admin</span>
+                            ) : (
+                              <select
+                                value={m.role}
+                                onChange={(e) => {
+                                  const nextRole = e.target.value as 'ADMIN' | 'STAFF';
+                                  setTeamMembers(prev => prev.map(item => item.id === m.id ? { ...item, role: nextRole } : item));
+                                  setSuperFeedback(`Role for ${m.name} changed to ${nextRole}. Logged to audit log.`);
+                                  setTimeout(() => setSuperFeedback(null), 3000);
+                                }}
+                                className="text-xs font-bold rounded-full px-2.5 py-1 border border-[#cfcfcf] bg-white outline-none cursor-pointer"
+                              >
+                                <option value="ADMIN">Admin</option>
+                                <option value="STAFF">Staff</option>
+                              </select>
+                            )}
+                          </td>
+                          <td>
+                            <span className={`tg ${m.status === 'Active' ? 'ok' : 'wn'}`}>{m.status}</span>
+                          </td>
+                          <td className="text-xs text-[#6E6E6E]">{m.lastActive}</td>
+                          <td>
+                            {m.role !== 'SUPER_ADMIN' ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const nextStatus = m.status === 'Suspended' ? 'Active' : 'Suspended';
+                                  setTeamMembers(prev => prev.map(item => item.id === m.id ? { ...item, status: nextStatus } : item));
+                                  setSuperFeedback(`${m.name} is now ${nextStatus}. Sessions invalidated.`);
+                                  setTimeout(() => setSuperFeedback(null), 3000);
+                                }}
+                                className="btn o s"
+                              >
+                                {m.status === 'Suspended' ? 'Restore' : 'Suspend'}
+                              </button>
+                            ) : (
+                              <span className="text-xs text-[#999] italic">Owner</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Permission Matrix */}
+                <div className="bg-white rounded-2xl border border-[#EBEBEB] p-5">
+                  <h3 className="font-bold text-sm mb-3">Permission Matrix</h3>
+                  <div className="tw">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Capability</th>
+                          <th>Super Admin</th>
+                          <th>Admin</th>
+                          <th>Staff</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[
+                          { cap: 'Overview & Donations Money', sa: '✓', ad: '✓', st: '—' },
+                          { cap: 'Analytics & Funnel', sa: '✓', ad: '✓', st: '—' },
+                          { cap: 'Campaign Checklist & Verification', sa: '✓', ad: '✓', st: '✓' },
+                          { cap: 'Approve & Reject Campaigns', sa: '✓', ad: '✓', st: '—' },
+                          { cap: 'Reports (Masked)', sa: '✓', ad: '✓', st: '—' },
+                          { cap: 'Reports (Unmasked Donor Phones)', sa: '✓', ad: '—', st: '—' },
+                          { cap: 'Team Management & Password Setup', sa: '✓', ad: '—', st: '—' },
+                          { cap: 'Audit Log & Fee Settings', sa: '✓', ad: '—', st: '—' },
+                        ].map((row, i) => (
+                          <tr key={i}>
+                            <td><b>{row.cap}</b></td>
+                            <td className="text-emerald-700 font-bold">{row.sa}</td>
+                            <td className="font-bold">{row.ad}</td>
+                            <td className="text-[#888]">{row.st}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Add Team Member Modal with Password */}
+                {showInviteModal && (
+                  <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-[24px] max-w-[480px] w-full p-6 shadow-2xl">
+                      <div className="flex items-center justify-between pb-3 border-b border-[#EBEBEB] mb-4">
+                        <h3 className="font-bold text-base">Add New Team Member</h3>
+                        <button type="button" onClick={() => setShowInviteModal(false)} className="text-sm font-bold">✕</button>
+                      </div>
+
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          if (!inviteName.trim() || !inviteEmail.trim() || !invitePassword.trim()) return;
+
+                          const newMember = {
+                            id: `tm-${Date.now()}`,
+                            name: inviteName.trim(),
+                            email: inviteEmail.trim(),
+                            role: inviteRole,
+                            status: 'Active' as const,
+                            lastActive: 'Active (Credentials created)',
+                          };
+
+                          setTeamMembers(prev => [...prev, newMember]);
+                          setShowInviteModal(false);
+                          setInviteName('');
+                          setInviteEmail('');
+                          setInvitePassword('');
+                          setSuperFeedback(`Team member ${newMember.name} added with role ${newMember.role}. They can sign in immediately using their email and password.`);
+                          setTimeout(() => setSuperFeedback(null), 5000);
+                        }}
+                        className="space-y-3"
+                      >
+                        <div>
+                          <label className="block text-xs font-bold text-[#6E6E6E] mb-1">Full Name</label>
+                          <input
+                            type="text"
+                            required
+                            value={inviteName}
+                            onChange={(e) => setInviteName(e.target.value)}
+                            placeholder="e.g. Yonas Haile"
+                            className="w-full border border-[#cfcfcf] rounded-xl px-3 py-2 text-sm outline-none focus:border-[#1A1A1A]"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-[#6E6E6E] mb-1">Email Address (Login Username)</label>
+                          <input
+                            type="email"
+                            required
+                            value={inviteEmail}
+                            onChange={(e) => setInviteEmail(e.target.value)}
+                            placeholder="e.g. yonas@wegen.et"
+                            className="w-full border border-[#cfcfcf] rounded-xl px-3 py-2 text-sm outline-none focus:border-[#1A1A1A]"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-[#6E6E6E] mb-1">Login Password</label>
+                          <input
+                            type="password"
+                            required
+                            minLength={6}
+                            value={invitePassword}
+                            onChange={(e) => setInvitePassword(e.target.value)}
+                            placeholder="Set initial login password (min 6 characters)"
+                            className="w-full border border-[#cfcfcf] rounded-xl px-3 py-2 text-sm outline-none focus:border-[#1A1A1A]"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-[#6E6E6E] mb-1">Role</label>
+                          <select
+                            value={inviteRole}
+                            onChange={(e) => setInviteRole(e.target.value as 'ADMIN' | 'STAFF')}
+                            className="w-full border border-[#cfcfcf] rounded-xl px-3 py-2 text-sm outline-none font-semibold"
+                          >
+                            <option value="STAFF">Staff (Review queue only, no money)</option>
+                            <option value="ADMIN">Admin (Full review, money, approvals)</option>
+                          </select>
+                        </div>
+
+                        <div className="flex justify-end gap-2 pt-3 border-t border-[#EBEBEB]">
+                          <button type="button" onClick={() => setShowInviteModal(false)} className="btn o s">Cancel</button>
+                          <button type="submit" className="btn d s">Add & Activate</button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 9. SUPER ADMIN: AUDIT LOG */}
+            {tab === 'audit' && isSuper && (
+              <div className="space-y-6 animate-fade-in">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h1 className="num">Security Audit Log</h1>
+                    <p className="sub">Immutable record of all ID views, checklist saves, role changes, and exports.</p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const csv = `ID,Timestamp,Actor,Role,Action,Target,IP\n` +
+                        `1,12 Oct 2026 06:40,Dawit Asefa,SUPER_ADMIN,ADD_MEMBER,selam@wegen.et,196.189.24.11\n` +
+                        `2,12 Oct 2026 06:15,Selamawit Bekele,STAFF,VIEW_ID_PHOTO,Campaign 1 (Abebe),197.156.78.92\n` +
+                        `3,12 Oct 2026 05:52,Selamawit Bekele,STAFF,RECOMMEND_ADMIN,Cardiac Surgery,197.156.78.92\n` +
+                        `4,12 Oct 2026 04:30,Kalkidan Mengistu,ADMIN,APPROVE_CAMPAIGN,School Water Project,196.189.102.5`;
+                      const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `wegen_audit_log_${Date.now()}.csv`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    }}
+                    className="btn d text-sm"
+                  >
+                    ⬇ Export Audit Log (CSV)
+                  </button>
+                </div>
+
+                <div className="tw">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Timestamp</th>
+                        <th>Actor</th>
+                        <th>Action</th>
+                        <th>Target Detail</th>
+                        <th>IP Address</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[
+                        { time: '12 Oct 2026, 06:40', actor: 'Dawit Asefa', role: 'SUPER_ADMIN', action: 'ADD_MEMBER', target: 'selam@wegen.et (Role: STAFF)', ip: '196.189.24.11' },
+                        { time: '12 Oct 2026, 06:15', actor: 'Selamawit Bekele', role: 'STAFF', action: 'VIEW_ID_PHOTO', target: 'Campaign ID: c-1 (Abebe Kebede)', ip: '197.156.78.92' },
+                        { time: '12 Oct 2026, 05:52', actor: 'Selamawit Bekele', role: 'STAFF', action: 'STAFF_RECOMMEND', target: 'Forwarded to Admin: Emergency Surgery', ip: '197.156.78.92' },
+                        { time: '12 Oct 2026, 04:30', actor: 'Kalkidan Mengistu', role: 'ADMIN', action: 'APPROVE_CAMPAIGN', target: 'Campaign ID: c-4 (Fatima Ahmed)', ip: '196.189.102.5' },
+                      ].map((log, i) => (
+                        <tr key={i}>
+                          <td className="font-mono text-xs">{log.time}</td>
+                          <td>
+                            <b>{log.actor}</b>{' '}
+                            <span className="tg">{log.role}</span>
+                          </td>
+                          <td><span className="font-mono font-bold bg-[#F5F5F5] px-2 py-0.5 rounded">{log.action}</span></td>
+                          <td>{log.target}</td>
+                          <td className="font-mono text-xs text-[#6E6E6E]">{log.ip}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* 10. SUPER ADMIN: PLATFORM FEE SETTINGS */}
+            {tab === 'settings' && isSuper && (
+              <div className="space-y-6 animate-fade-in max-w-xl">
+                <div>
+                  <h1 className="num">Platform Fee Settings</h1>
+                  <p className="sub">Adjust platform fee percentage. Requires Super Admin password re-authentication.</p>
+                </div>
+
+                <div className="bg-white rounded-2xl border border-[#EBEBEB] p-6 space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-[#6E6E6E] mb-1">Current Active Fee</label>
+                    <div className="text-2xl font-black text-[#1A1A1A]">10.0%</div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-[#6E6E6E] mb-1">New Fee Percentage (%)</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="25"
+                      value={platformFeeRate}
+                      onChange={(e) => setPlatformFeeRate(e.target.value)}
+                      className="w-full border border-[#cfcfcf] rounded-xl px-3 py-2 text-sm font-bold outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-[#6E6E6E] mb-1">Effective Date</label>
+                    <input
+                      type="date"
+                      value={feeEffectiveDate}
+                      onChange={(e) => setFeeEffectiveDate(e.target.value)}
+                      className="w-full border border-[#cfcfcf] rounded-xl px-3 py-2 text-sm outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-[#1A1A1A] mb-1">Re-enter Super Admin Password</label>
+                    <input
+                      type="password"
+                      placeholder="SuperAdmin@2026"
+                      value={feeAuthPassword}
+                      onChange={(e) => setFeeAuthPassword(e.target.value)}
+                      className="w-full border border-[#cfcfcf] rounded-xl px-3 py-2 text-sm outline-none"
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (feeAuthPassword !== 'SuperAdmin@2026') {
+                        alert('Incorrect Super Admin password');
+                        return;
+                      }
+                      alert(`Platform fee updated to ${platformFeeRate}% with effective date ${feeEffectiveDate}`);
+                      setFeeAuthPassword('');
+                    }}
+                    className="btn d"
+                  >
+                    Save Fee Configuration
+                  </button>
+                </div>
+              </div>
+            )}
 
           </main>
         </div>

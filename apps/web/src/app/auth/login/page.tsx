@@ -61,7 +61,7 @@ function LoginContent() {
       );
       localStorage.setItem('ethiofund-user', JSON.stringify({ email: SUPER_ADMIN_EMAIL, role: 'SUPER_ADMIN' }));
       setLoading(false);
-      router.push('/super/team');
+      router.push('/super');
       return;
     }
 
@@ -267,7 +267,7 @@ function LoginContent() {
             >
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-[#1A1A1A]">Super Admin (Owner)</span>
-                <span className="text-[10px] bg-[#1A1A1A] text-white px-2 py-0.5 rounded-full font-bold">/super/team</span>
+                <span className="text-[10px] bg-[#1A1A1A] text-white px-2 py-0.5 rounded-full font-bold">/super</span>
               </div>
               <div className="text-[11px] text-[#6E6E6E] font-mono mt-0.5">superadmin@wegen.et · SuperAdmin@2026</div>
             </button>
