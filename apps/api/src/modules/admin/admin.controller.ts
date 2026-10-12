@@ -7,7 +7,7 @@ import { UserRoleName } from '@prisma/client';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RbacGuard)
-@Roles(UserRoleName.SUPER_ADMIN, UserRoleName.ADMIN, UserRoleName.STAFF)
+@Roles('SUPER_ADMIN', 'ADMIN', 'STAFF')
 export class AdminController {
   constructor(private adminService: AdminService) {}
 

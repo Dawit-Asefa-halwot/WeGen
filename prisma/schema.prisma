@@ -151,6 +151,10 @@ model User {
   reportsGenerated      ReportRun[]   @relation("UserReportRuns")
   usersDisabled         User[]        @relation("AdminDisabledUsers")
   disabledBy            User?         @relation("AdminDisabledUsers", fields: [disabledByUserId], references: [id])
+  reviewChecks          ReviewCheck[]
+  staffRecommendations  StaffRecommendation[]
+  changeRequests        ChangeRequest[]
+  teamMemberProfile     TeamMember?
 }
 
 model Role {
@@ -217,6 +221,9 @@ model Campaign {
   withdrawals      Withdrawal[]
   reports          Report[]
   flags            Flag[]
+  reviewChecks     ReviewCheck[]
+  staffRecommendations StaffRecommendation[]
+  changeRequests   ChangeRequest[]
 
   @@index([status, campaignType])
   @@index([slug])
@@ -606,5 +613,131 @@ model ReportRun {
 
   @@index([type, generatedAt])
   @@index([generatedAt])
+}
+
+// ── STAFF WORKSPACE MODELS ──
+
+model ReviewCheck {
+  id           String   @id @default(uuid())
+  campaignId   String
+  staffId      String
+  nameMatches  Boolean  @default(false)
+  idClear      Boolean  @default(false)
+  storyGenuine Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  staff    User     @relation(fields: [staffId], references: [id])
+
+  @@index([campaignId])
+  @@index([staffId, createdAt])
+}
+
+enum RecommendationStatus {
+  OPEN
+  ACCEPTED
+  DISMISSED
+}
+
+model StaffRecommendation {
+  id         String               @id @default(uuid())
+  campaignId String
+  staffId    String
+  note       String?
+  status     RecommendationStatus @default(OPEN)
+  createdAt  DateTime             @default(now())
+  resolvedBy String?
+  resolvedAt DateTime?
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  staff    User     @relation(fields: [staffId], references: [id])
+
+  @@index([campaignId])
+  @@index([staffId, createdAt])
+}
+
+enum ChangeRequestStatus {
+  PENDING
+  RESOLVED
+}
+
+model ChangeRequest {
+  id          String              @id @default(uuid())
+  campaignId  String
+  requestedBy String
+  reason      String              @db.Text
+  status      ChangeRequestStatus @default(PENDING)
+  createdAt   DateTime            @default(now())
+
+  campaign  Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  requester User     @relation(fields: [requestedBy], references: [id])
+
+  @@index([campaignId])
+  @@index([requestedBy, createdAt])
+}
+
+// ── SUPER ADMIN WORKSPACE MODELS ──
+
+enum TeamMemberStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+}
+
+model TeamMember {
+  id           String           @id @default(uuid())
+  userId       String           @unique
+  role         UserRoleName
+  status       TeamMemberStatus @default(INVITED)
+  invitedBy    String?
+  invitedAt    DateTime         @default(now())
+  acceptedAt   DateTime?
+  lastActiveAt DateTime?
+  suspendedBy  String?
+  suspendedAt  DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+}
+
+model TeamInvite {
+  id        String       @id @default(uuid())
+  email     String
+  role      UserRoleName
+  tokenHash String       @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdBy String
+  createdAt DateTime     @default(now())
+
+  @@index([email])
+}
+
+model RoleChange {
+  id        String       @id @default(uuid())
+  memberId  String
+  oldRole   UserRoleName
+  newRole   UserRoleName
+  changedBy String
+  createdAt DateTime     @default(now())
+
+  @@index([memberId])
+  @@index([changedBy, createdAt])
+}
+
+model AdminAuditLog {
+  id         String   @id @default(uuid())
+  actorId    String
+  actorRole  String
+  action     String
+  targetType String
+  targetId   String?
+  metadata   Json?
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
 }
 

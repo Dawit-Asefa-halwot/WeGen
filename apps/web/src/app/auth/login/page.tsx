@@ -6,9 +6,15 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { apiRequest } from '../../../lib/api-client';
 import { useAuthStore } from '../../../lib/auth-store';
 
-// ── Admin credentials (demo / prototype) ──
-const ADMIN_EMAIL    = 'admin@wegen.et';
-const ADMIN_PASSWORD = 'Admin@2026';
+// ── Dedicated role credentials (demo / prototype) ──
+const SUPER_ADMIN_EMAIL = 'superadmin@wegen.et';
+const SUPER_ADMIN_PW    = 'SuperAdmin@2026';
+
+const ADMIN_EMAIL       = 'admin@wegen.et';
+const ADMIN_PASSWORD    = 'Admin@2026';
+
+const STAFF_EMAIL       = 'staff@wegen.et';
+const STAFF_PASSWORD    = 'Staff@2026';
 
 function LoginContent() {
   const router       = useRouter();
@@ -38,22 +44,62 @@ function LoginContent() {
     setErrorMsg('');
     setLoading(true);
 
-    // ── Check admin credentials ──
-    if (email.trim().toLowerCase() === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+    const normEmail = email.trim().toLowerCase();
+
+    // ── Check Super Admin credentials ──
+    if (normEmail === SUPER_ADMIN_EMAIL && password === SUPER_ADMIN_PW) {
+      setAuth(
+        {
+          id: 'superadmin-001',
+          email: SUPER_ADMIN_EMAIL,
+          firstName: 'Super',
+          lastName: 'Admin',
+          roles: ['SUPER_ADMIN', 'ADMIN'],
+          isEmailVerified: true,
+        },
+        'superadmin-demo-token'
+      );
+      localStorage.setItem('ethiofund-user', JSON.stringify({ email: SUPER_ADMIN_EMAIL, role: 'SUPER_ADMIN' }));
+      setLoading(false);
+      router.push('/super/team');
+      return;
+    }
+
+    // ── Check Admin credentials ──
+    if (normEmail === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
       setAuth(
         {
           id: 'admin-001',
           email: ADMIN_EMAIL,
           firstName: 'WeGen',
           lastName: 'Admin',
-          roles: ['ADMIN', 'FUNDRAISER'],
+          roles: ['ADMIN'],
           isEmailVerified: true,
         },
         'admin-demo-token'
       );
-      localStorage.setItem('ethiofund-user', JSON.stringify({ email: ADMIN_EMAIL }));
+      localStorage.setItem('ethiofund-user', JSON.stringify({ email: ADMIN_EMAIL, role: 'ADMIN' }));
       setLoading(false);
       router.push('/admin');
+      return;
+    }
+
+    // ── Check Staff credentials ──
+    if (normEmail === STAFF_EMAIL && password === STAFF_PASSWORD) {
+      setAuth(
+        {
+          id: 'staff-001',
+          email: STAFF_EMAIL,
+          firstName: 'Verification',
+          lastName: 'Staff',
+          roles: ['STAFF'],
+          isEmailVerified: true,
+        },
+        'staff-demo-token'
+      );
+      localStorage.setItem('ethiofund-user', JSON.stringify({ email: STAFF_EMAIL, role: 'STAFF' }));
+      setLoading(false);
+      router.push('/staff');
       return;
     }
 
@@ -207,6 +253,50 @@ function LoginContent() {
             {loading ? 'Signing in...' : 'Sign in'}
           </button>
         </form>
+
+        {/* Demo Quick-Fill Credentials */}
+        <div className="mt-6 p-4 bg-[#F0F0F0] rounded-2xl text-left border border-[#E0E0E0]">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-[#6E6E6E] block mb-2">
+            Quick-Fill Credentials (Click to fill)
+          </span>
+          <div className="flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={() => { setEmail(SUPER_ADMIN_EMAIL); setPassword(SUPER_ADMIN_PW); }}
+              className="text-left p-2 rounded-xl bg-white hover:bg-[#FAF9F5] border border-[#E5E5E5] transition-all"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-[#1A1A1A]">Super Admin (Owner)</span>
+                <span className="text-[10px] bg-[#1A1A1A] text-white px-2 py-0.5 rounded-full font-bold">/super/team</span>
+              </div>
+              <div className="text-[11px] text-[#6E6E6E] font-mono mt-0.5">superadmin@wegen.et · SuperAdmin@2026</div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => { setEmail(ADMIN_EMAIL); setPassword(ADMIN_PASSWORD); }}
+              className="text-left p-2 rounded-xl bg-white hover:bg-[#FAF9F5] border border-[#E5E5E5] transition-all"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-[#1A1A1A]">Admin</span>
+                <span className="text-[10px] bg-[#CCF88E] text-[#1A1A1A] px-2 py-0.5 rounded-full font-bold">/admin</span>
+              </div>
+              <div className="text-[11px] text-[#6E6E6E] font-mono mt-0.5">admin@wegen.et · Admin@2026</div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => { setEmail(STAFF_EMAIL); setPassword(STAFF_PASSWORD); }}
+              className="text-left p-2 rounded-xl bg-white hover:bg-[#FAF9F5] border border-[#E5E5E5] transition-all"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-[#1A1A1A]">Staff (Reviewer)</span>
+                <span className="text-[10px] bg-[#E0F2FE] text-[#0369A1] px-2 py-0.5 rounded-full font-bold">/staff</span>
+              </div>
+              <div className="text-[11px] text-[#6E6E6E] font-mono mt-0.5">staff@wegen.et · Staff@2026</div>
+            </button>
+          </div>
+        </div>
 
         <small className="block mt-5 text-[#6E6E6E] text-xs">
           By continuing, you agree to our{' '}
